@@ -311,8 +311,13 @@
   /* ---- cérebro: Gemini (com Google Search) quando a chave existir;
      sem chave, usa a ponte Claude do claude.ai ---- */
   const GEMINI_KEY = '__GEMINI_KEY__';
-  const GEMINI_MODEL = 'gemini-2.5-flash';
   const USE_GEMINI = !!GEMINI_KEY && GEMINI_KEY.indexOf('__') === -1;
+  /* o modelo é descoberto em tempo real via ListModels,
+     preferindo sempre o mais avançado disponível na conta */
+  let GEMINI_MODEL = null;
+  let geminiCandidates = [];
+  const GEM_PREFS = ['gemini-3-pro','gemini-3.0-pro','gemini-3-flash','gemini-3.0-flash',
+                     'gemini-2.5-pro','gemini-2.5-flash','gemini-2.0','gemini'];
 
   const canvas = document.getElementById('stage');
   const ctx = canvas.getContext('2d');
@@ -924,6 +929,57 @@
       return base + ': falha de rede';
     }
 
+    /* descobre qual é o gemini mais avançado que a chave enxerga */
+    function prefScore(n){
+      for (let i = 0; i < GEM_PREFS.length; i++)
+        if (n.indexOf(GEM_PREFS[i]) === 0) return i;
+      return 99;
+    }
+    let gemPick = null;
+    function ensureGeminiModel(){
+      if (GEMINI_MODEL) return Promise.resolve(true);
+      if (gemPick) return gemPick;
+      gemPick = (async () => {
+        try{
+          const r = await fetch(
+            'https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=' +
+            GEMINI_KEY);
+          const data = await r.json().catch(() => null);
+          if (!r.ok){
+            setBrain(brainErr(null, r.status,
+              (data && data.error && data.error.message) || ''), true);
+            gemPick = null;
+            return false;
+          }
+          const bad = /embedding|tts|image|veo|imagen|audio|live|aqa|robotics/i;
+          const ms = (data.models || [])
+            .filter(m => (m.supportedGenerationMethods || []).indexOf('generateContent') !== -1)
+            .map(m => m.name.replace('models/', ''))
+            .filter(n => !bad.test(n));
+          ms.sort((a, b) => prefScore(a) - prefScore(b) || a.length - b.length);
+          geminiCandidates = ms;
+          GEMINI_MODEL = ms[0] || null;
+          if (!GEMINI_MODEL){
+            setBrain('gemini: nenhum modelo disponível', true);
+            return false;
+          }
+          console.log('[feita de pontos] modelos gemini da conta:', ms.slice(0, 10));
+          setBrain(GEMINI_MODEL + ' + busca');
+          return true;
+        }catch(e){
+          console.warn('[feita de pontos] falha ao listar modelos', e);
+          setBrain('gemini: falha ao listar modelos', true);
+          gemPick = null;
+          return false;
+        }
+      })();
+      return gemPick;
+    }
+    if (USE_GEMINI){
+      setBrain('gemini: escolhendo modelo…');
+      ensureGeminiModel();
+    }
+
     /* contexto vivo da sessão: cartão do brief + fase atual */
     function sessionContext(){
       let s = '';
@@ -938,12 +994,14 @@
     }
 
     /* ---- cliente unificado: Gemini (com Google Search) ou Claude ---- */
-    async function llm(system, messages){
+    async function llm(system, messages, retry){
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 35000);
       try{
         let raw = '', status = 0, apiMsg = '';
         if (USE_GEMINI){
+          const ok = await ensureGeminiModel();
+          if (!ok){ clearTimeout(timer); return null; }
           const r = await fetch(
             'https://generativelanguage.googleapis.com/v1beta/models/' +
             GEMINI_MODEL + ':generateContent?key=' + GEMINI_KEY,
@@ -963,6 +1021,14 @@
           if (!r.ok){
             apiMsg = (data && data.error && data.error.message) || '';
             console.warn('[feita de pontos] erro gemini', status, apiMsg, data);
+            if (status === 404 && geminiCandidates.length > 1 && !retry){
+              geminiCandidates.shift();
+              GEMINI_MODEL = geminiCandidates[0];
+              console.warn('[feita de pontos] 404 no modelo; tentando', GEMINI_MODEL);
+              setBrain(GEMINI_MODEL + ' + busca');
+              clearTimeout(timer);
+              return llm(system, messages, true);
+            }
             setBrain(brainErr(null, status, apiMsg), true);
             clearTimeout(timer);
             return null;
@@ -976,7 +1042,7 @@
             clearTimeout(timer);
             return null;
           }
-          setBrain('gemini + busca ✓');
+          setBrain(GEMINI_MODEL + ' ✓');
         } else {
           const r = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
