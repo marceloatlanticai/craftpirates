@@ -276,6 +276,7 @@
 
 <div class="meta">
   estado — <b id="estado">esperando</b><br>
+  cérebro — <b id="brainInfo">—</b><br>
   arquétipo — <b id="archInfo">a maga</b><br>
   <b id="dotCount">—</b> pontos
 </div>
@@ -321,14 +322,14 @@
      A SALA DE CRIAÇÃO — arsenais de técnica por mente
   ========================================================= */
   const ARSENAL = {
-    maga: 'Arsenal: SCAMPER (substituir, combinar, adaptar, modificar, dar outro uso, eliminar, inverter), pensamento lateral, fusão de opostos, mudança de contexto do produto.',
-    vidente: 'Arsenal: análise semiótica da categoria, convenções e clichês a quebrar, tensões culturais, códigos visuais e verbais que todas as marcas repetem igual.',
-    sabio: 'Arsenal: first principles, os cinco porquês, single-minded proposition, redução à verdade nua do produto, síntese e escolha.',
-    heroina: 'Arsenal: How Might We, matar os darlings, decisão forçada, coragem à Dave Trott: fazer o que a categoria tem medo de fazer.',
-    amante: 'Arsenal: territórios emocionais, job to be done afetivo, storytelling, a imagem concreta que faz sentir, o detalhe humano que vira campanha.',
-    inocente: 'Arsenal: mente de principiante, random input de Edward de Bono, perguntas ingênuas que desmontam premissas, humor e jogo.',
-    explorador: 'Arsenal: inspiração análoga — como outra categoria resolveria isso, roubo criativo entre indústrias, benchmarks fora do óbvio.',
-    comum: 'Arsenal: a voz do consumidor real, o teste do ninguém-liga-para-a-sua-marca, fricções práticas de uso, o contexto verdadeiro do dia a dia.'
+    maga: 'Protocolo: 1) identifique o elemento que todos tratam como fixo neste brief; 2) aplique UMA operação de SCAMPER nele, nomeando a operação; 3) descreva a ideia resultante numa cena concreta de uma frase. Teste de qualidade: se a inversão servir para qualquer produto, está rasa — refaça presa a ESTE produto.',
+    vidente: 'Protocolo: 1) nomeie 2 ou 3 códigos dominantes da categoria (visual, verbal ou de ocasião), citando exemplo real; 2) aponte o código mais rígido; 3) proponha a quebra específica para esta marca. Teste de qualidade: código sem exemplo nomeado não vale.',
+    sabio: 'Protocolo: 1) escreva a verdade nua do produto em até dez palavras; 2) derive dela a single-minded proposition; 3) corte da conversa tudo que não a serve. Teste de qualidade: se a proposição couber em outra marca, aperte mais.',
+    heroina: 'Protocolo: 1) nomeie o medo da categoria — o que ninguém tem coragem de fazer; 2) formule um How Might We que encare esse medo; 3) aponte qual parte da ideia atual é um darling a matar. Teste de qualidade: provocação sem consequência prática é pose.',
+    amante: 'Protocolo: 1) nomeie a emoção exata (proibido: felicidade, conexão); 2) escreva a cena-mãe — pessoa, hora, lugar, gesto — em uma frase; 3) mostre onde a marca entra sem interromper a cena. Teste de qualidade: se a cena não render um frame de filme, refaça.',
+    inocente: 'Protocolo: 1) faça a pergunta ingênua que ataca a premissa central do brief; 2) traga um random input — uma palavra distante sorteada por você — e force a conexão com o produto; 3) proponha um jogo: uma regra absurda que geraria ideias. Teste de qualidade: ingênuo não é vago — a pergunta deve doer de tão simples.',
+    explorador: 'Protocolo: 1) escolha uma indústria distante que já resolveu um problema estruturalmente igual; 2) descreva o mecanismo dela (não a estética), citando caso real nomeado; 3) transponha o mecanismo para este brief em uma frase. Teste de qualidade: sem caso nomeado, não vale.',
+    comum: 'Protocolo: 1) descreva a terça-feira real do público deste brief — hora, lugar, pressa; 2) aponte a fricção concreta número um entre a ideia e essa terça; 3) diga o que faria a pessoa realmente parar. Teste de qualidade: citar o consumidor sem cena obriga a refazer.'
   };
   const FALLBACKS = {
     maga: ['Pegue o elemento mais banal dessa ideia e inverta: o que acontece se ele virar o herói? O que aqui todo mundo trata como fixo?','Aplique um SCAMPER rápido: se você eliminasse a peça mais óbvia do projeto, o que sobra — e o que isso liberta?'],
@@ -779,11 +780,30 @@
       /* o brief abre a sessão: o elenco decide quem trabalha primeiro */
       convo.on = true;
       convo.history = [];
+      convo.card = null;
+      convo.turns = 0;
       qInput.placeholder = PLACEHOLDER_CONVO;
       qBtn.textContent = 'responder';
       endBtn.classList.add('on');
       oracle.lastQ = q;
-      sendReply(q);
+      /* leitura silenciosa: extrai o cartão do brief antes da primeira fala */
+      askBar.classList.add('busy');
+      setEstado('lendo o brief…');
+      oracle.agitTarget = 0.5;
+      qInput.value = '';
+      qInput.blur();
+      (async () => {
+        const raw = await llm(
+          'Extraia do texto um cartão de brief em JSON: {"marca":"","categoria":"","produto":"","publico":"","objetivo":"","tensao":"a tensão criativa central"}. Infira com bom senso o que faltar, marcando (inferido). Responda APENAS o JSON, sem markdown.',
+          [ { role: 'user', content: q } ]);
+        try{
+          const c = JSON.parse(raw.replace(/```json|```/g, '').trim());
+          convo.card = 'marca: ' + (c.marca || '?') + '; categoria: ' + (c.categoria || '?') +
+            '; produto: ' + (c.produto || '?') + '; público: ' + (c.publico || '?') +
+            '; objetivo: ' + (c.objetivo || '?') + '; tensão: ' + (c.tensao || '?');
+        }catch(e){ convo.card = null; }
+        sendReply(q);
+      })();
     }
 
     /* =========================================================
@@ -791,7 +811,7 @@
        ela pergunta; você responde; ela escuta e devolve
        uma nova pergunta relevante (via Claude, com histórico)
     ========================================================= */
-    const convo = { on: false, history: [], ans: null };
+    const convo = { on: false, history: [], ans: null, card: null, turns: 0 };
     const CAST_DESC = 'maga (A Alquimista): transforma a ideia — SCAMPER, inversões, fusões; vidente (A Semióloga): códigos e clichês da categoria a quebrar; sabio (O Estrategista): reduz à verdade essencial, sintetiza e escolhe; heroina (A Provocadora): força decisão e coragem, mata darlings; amante (O Poeta): território emocional, cena humana, storytelling; inocente (O Brincante): pergunta ingênua, random input, jogo; explorador (O Explorador): inspiração análoga de outras indústrias; comum (O Cético): consumidor real, fricções práticas, anti-viagem.';
     const FALLBACK_FOLLOW = [
       'Entendo. E se isso não fosse um problema — o que seria?',
@@ -801,7 +821,8 @@
       'O que você sente quando diz isso em voz alta?',
       'Se um amigo te dissesse isso, o que você responderia a ele?'
     ];
-    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo. As falas do elenco vêm marcadas com [nome]; as sem marca são da pessoa. A cada turno: avance a ideia dela com UMA contribuição concreta na sua especialidade — um dado real de mercado (use a busca quando disponível, citando fatos e campanhas recentes de verdade), uma técnica do seu arsenal aplicada ao caso, uma direção ou uma provocação — e termine com UMA pergunta que afie a ideia. Máximo de 75 palavras. Português. Sem clichês de brainstorm, sem elogio vazio, jamais mencione ser IA. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"..."}';
+    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo. Falas do elenco vêm marcadas com [nome]; sem marca é a pessoa. REGRAS DE CONCRETUDE: toda contribuição deve conter ao menos UMA referência nomeada e verificável (campanha, marca, caso, dado, autor) aplicada a ESTE brief; proibido conselho que sirva para qualquer marca — se servir, reescreva antes de responder; proibido perguntar sem antes contribuir. Estrutura do turno: siga o seu protocolo e feche com UMA pergunta que afie a ideia. Até 110 palavras. EXEMPLO RUIM: que tal explorar o lado emocional do consumidor? EXEMPLO BOM: a categoria de sopa vende inverno e família desde os anos 1930 — o M\'m! M\'m! Good! da Campbell\'s é o hino disso; desk lunch quebra os dois códigos de uma vez: calor sem frio, refeição sem mesa posta; e se a marca assumir a sopa que não pede ocasião? Qual código você quebra primeiro: o clima ou a companhia? Português. Jamais mencione ser IA. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"..."}' +
+      (USE_GEMINI ? ' USO DA BUSCA: antes de responder, pesquise UM fato relevante — movimento recente da marca do brief ou campanha análoga real — e cite nome e ano; se nada útil vier, diga explicitamente que está sem dados ao vivo neste turno.' : '');
 
     const PLACEHOLDER_ORACULO = 'cole seu brief ou sua ideia bruta…';
     const PLACEHOLDER_CONVO = 'responda a ele(a)…';
@@ -851,6 +872,8 @@
       convo.on = false;
       convo.history = [];
       convo.ans = null;
+      convo.card = null;
+      convo.turns = 0;
       hideHandoff();
       qInput.placeholder = PLACEHOLDER_ORACULO;
       qBtn.textContent = 'trabalhar a ideia';
@@ -883,30 +906,77 @@
         x.classList.toggle('on', x.dataset.a === curKey));
     }
 
+    /* indicador do cérebro em uso e diagnóstico de falhas */
+    const brainInfo = document.getElementById('brainInfo');
+    brainInfo.textContent = USE_GEMINI ? 'gemini + busca' : 'claude';
+    function setBrain(txt, isErr){
+      brainInfo.textContent = txt;
+      brainInfo.style.color = isErr ? 'rgb(255,140,120)' : '';
+    }
+    function brainErr(e, status, apiMsg){
+      const base = USE_GEMINI ? 'gemini' : 'claude';
+      if (status === 400) return base + ' 400: requisição inválida';
+      if (status === 401 || status === 403) return base + ' ' + status + ': chave inválida ou restrita';
+      if (status === 404) return base + ' 404: modelo não encontrado';
+      if (status === 429) return base + ' 429: cota excedida';
+      if (status) return base + ' ' + status + (apiMsg ? ': ' + apiMsg.slice(0, 60) : '');
+      if (e && e.name === 'AbortError') return base + ': tempo esgotado';
+      return base + ': falha de rede';
+    }
+
+    /* contexto vivo da sessão: cartão do brief + fase atual */
+    function sessionContext(){
+      let s = '';
+      if (convo.card) s += 'BRIEF DA SESSÃO — ' + convo.card + '. ';
+      const ph = convo.turns < 2
+        ? 'mergulho: entender o brief e encontrar a tensão'
+        : convo.turns < 5
+          ? 'territórios: abrir caminhos criativos distintos'
+          : 'afiar: aprofundar o melhor caminho e caminhar para a decisão';
+      s += 'FASE DA SESSÃO: ' + ph + '. ';
+      return s;
+    }
+
     /* ---- cliente unificado: Gemini (com Google Search) ou Claude ---- */
     async function llm(system, messages){
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 35000);
       try{
-        let raw = '';
+        let raw = '', status = 0, apiMsg = '';
         if (USE_GEMINI){
-          const body = {
-            systemInstruction: { parts: [{ text: system }] },
-            contents: messages.map(m => ({
-              role: m.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: m.content }]
-            })),
-            tools: [{ google_search: {} }]
-          };
           const r = await fetch(
             'https://generativelanguage.googleapis.com/v1beta/models/' +
             GEMINI_MODEL + ':generateContent?key=' + GEMINI_KEY,
             { method: 'POST', headers: { 'Content-Type': 'application/json' },
-              signal: ctrl.signal, body: JSON.stringify(body) });
-          const data = await r.json();
-          const cand = (data.candidates || [])[0];
+              signal: ctrl.signal,
+              body: JSON.stringify({
+                systemInstruction: { parts: [{ text: system }] },
+                contents: messages.map(m => ({
+                  role: m.role === 'assistant' ? 'model' : 'user',
+                  parts: [{ text: m.content }]
+                })),
+                tools: [{ google_search: {} }],
+                generationConfig: { temperature: 0.9 }
+              }) });
+          status = r.status;
+          const data = await r.json().catch(() => null);
+          if (!r.ok){
+            apiMsg = (data && data.error && data.error.message) || '';
+            console.warn('[feita de pontos] erro gemini', status, apiMsg, data);
+            setBrain(brainErr(null, status, apiMsg), true);
+            clearTimeout(timer);
+            return null;
+          }
+          const cand = (data && data.candidates || [])[0];
           raw = ((cand && cand.content && cand.content.parts) || [])
             .map(p => p.text || '').join('\n');
+          if (!raw){
+            console.warn('[feita de pontos] gemini respondeu vazio', data);
+            setBrain('gemini: resposta vazia', true);
+            clearTimeout(timer);
+            return null;
+          }
+          setBrain('gemini + busca ✓');
         } else {
           const r = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -916,14 +986,25 @@
               system, messages
             })
           });
-          const data = await r.json();
-          raw = (data.content || []).filter(b => b.type === 'text')
+          status = r.status;
+          const data = await r.json().catch(() => null);
+          if (!r.ok){
+            apiMsg = (data && data.error && data.error.message) || '';
+            console.warn('[feita de pontos] erro claude', status, apiMsg, data);
+            setBrain(brainErr(null, status, apiMsg), true);
+            clearTimeout(timer);
+            return null;
+          }
+          raw = (data && data.content || []).filter(b => b.type === 'text')
             .map(b => b.text).join('\n');
+          setBrain('claude ✓');
         }
         clearTimeout(timer);
         return raw;
       }catch(e){
         clearTimeout(timer);
+        console.warn('[feita de pontos] falha na chamada', e);
+        setBrain(brainErr(e, 0, ''), true);
         return null;
       }
     }
@@ -954,17 +1035,18 @@
       } else {
         system = ARQ.persona + ' ' + CONVO_BASE;
       }
-      const raw = await llm(system, convo.history);
+      const raw = await llm(sessionContext() + system, convo.history);
       const ans = parseAns(raw, routing);
       if (ans) return ans;
       const fb = FALLBACKS[curKey];
-      return { t: fb[(Math.random() * fb.length) | 0], m: 'gentil', quem: curKey };
+      return { t: fb[(Math.random() * fb.length) | 0], m: 'gentil', quem: curKey, local: true };
     }
 
     async function sendReply(text){
       if (oracle.state === 'convo') return;
       hideHandoff();
       convo.history.push({ role: 'user', content: text });
+      convo.turns++;
       if (convo.history.length > 14) convo.history = convo.history.slice(-14);
       oracle.state = 'convo';
       convo.ans = null;
@@ -1232,7 +1314,7 @@
       oracle.agitTarget = 0.6;
       convo.history.push({ role: 'user',
         content: '[pedido de síntese] Sintetize a sessão: territórios, tensão central e próximo passo.' });
-      const raw = await llm(ARQ.persona + ' ' + DEEP_SYSTEM, convo.history);
+      const raw = await llm(sessionContext() + ARQ.persona + ' ' + DEEP_SYSTEM, convo.history);
       const ans = parseAns(raw, false);
       oracle.deepAns = ans
         ? { ans }
@@ -1398,7 +1480,8 @@
           showHandoff(c);
         } else {
           convo.history.push({ role: 'assistant', content: '[' + ARQ.nome + '] ' + c.t });
-          revealLine(t, c.t, c.m, '— ' + ARQ.nome + ' —');
+          revealLine(t, c.t, c.m,
+            '— ' + ARQ.nome + (c.local ? ' · resposta local' : '') + ' —');
         }
       }
       /* silêncio prolongado: ela puxa conversa sozinha */
