@@ -25,7 +25,10 @@ html = Path(__file__).with_name("index.html").read_text(encoding="utf-8")
 
 # injeta a chave do Gemini a partir dos secrets do Streamlit
 # (em .streamlit/secrets.toml localmente, ou em Settings → Secrets no Streamlit Cloud)
-gemini_key = st.secrets.get("GEMINI_API_KEY", "")
+try:
+    gemini_key = st.secrets.get("GEMINI_API_KEY", "")
+except Exception:
+    gemini_key = ""
 html = html.replace("__GEMINI_KEY__", gemini_key)
 
 components.html(html, height=920, scrolling=False)
