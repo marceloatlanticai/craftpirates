@@ -779,7 +779,7 @@
     function ask(){
       const q = qInput.value.trim();
       if (!q) return;
-      if (pendingHO && !pendingHO.opener) hideHandoff();
+      if (oracle.state === 'handoff' && pendingHO && !pendingHO.opener){ hideHandoff(); }
       if (convo.on){ sendReply(q); return; }
       if (oracle.state === 'deep' || oracle.state === 'convo') return;
       /* o brief abre a sessão: o elenco decide quem trabalha primeiro */
@@ -826,8 +826,8 @@
       'O que você sente quando diz isso em voz alta?',
       'Se um amigo te dissesse isso, o que você responderia a ele?'
     ];
-    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo brasileiro. Falas do elenco vêm marcadas com [nome]; falas marcadas [direção da sessão] são instruções do palco; sem marca é a pessoa. IDIOMA: português do Brasil, sempre — use você e a gente; jamais português europeu. ESTILO: frases curtas e diretas; máximo de 60 palavras no total; PROIBIDO asteriscos, markdown, listas, títulos e emojis. CONCRETUDE: inclua UMA referência nomeada e verificável (campanha, marca, caso ou dado) aplicada a ESTE brief — conselho que serve para qualquer marca deve ser reescrito antes de responder. Siga o seu protocolo e feche com UMA pergunta curta. Exemplo de concretude: a Campbell\'s vende sopa como inverno e família desde 1930; desk lunch quebra os dois códigos — e se a marca assumir a sopa sem ocasião? DIÁLOGO: você pode concordar, construir ou divergir com firmeza das falas anteriores do elenco. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"...","proximo":"maga|vidente|sabio|heroina|amante|inocente|explorador|comum — outra mente, diferente de quem respondeu, que teria algo a acrescentar ou contestar agora","gancho":"em até 12 palavras, o que essa mente quer dizer"}' +
-      (USE_GEMINI ? ' USO DA BUSCA: antes de responder, pesquise UM fato relevante — movimento recente da marca do brief ou campanha análoga real — e cite nome e ano; se nada útil vier, diga que está sem dados ao vivo neste turno.' : '');
+    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo. Falas do elenco vêm marcadas com [nome]; sem marca é a pessoa. REGRAS DE CONCRETUDE: toda contribuição deve conter ao menos UMA referência nomeada e verificável (campanha, marca, caso, dado, autor) aplicada a ESTE brief; proibido conselho que sirva para qualquer marca — se servir, reescreva antes de responder; proibido perguntar sem antes contribuir. Estrutura do turno: siga o seu protocolo e feche com UMA pergunta que afie a ideia. Até 110 palavras. EXEMPLO RUIM: que tal explorar o lado emocional do consumidor? EXEMPLO BOM: a categoria de sopa vende inverno e família desde os anos 1930 — o M\'m! M\'m! Good! da Campbell\'s é o hino disso; desk lunch quebra os dois códigos de uma vez: calor sem frio, refeição sem mesa posta; e se a marca assumir a sopa que não pede ocasião? Qual código você quebra primeiro: o clima ou a companhia? Português. Jamais mencione ser IA. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"..."}' +
+      (USE_GEMINI ? ' USO DA BUSCA: antes de responder, pesquise UM fato relevante — movimento recente da marca do brief ou campanha análoga real — e cite nome e ano; se nada útil vier, diga explicitamente que está sem dados ao vivo neste turno.' : '');
 
     const PLACEHOLDER_ORACULO = 'cole seu brief ou sua ideia bruta…';
     const PLACEHOLDER_CONVO = 'responda a ele(a)…';
@@ -1081,14 +1081,6 @@
         return null;
       }
     }
-    function limpa(s){
-      return String(s).replace(/\*+/g, '').replace(/[#_`~]+/g, ' ')
-        .replace(/\s{2,}/g, ' ').trim();
-    }
-    function outraMente(exceto){
-      const ks = Object.keys(ARCH).filter(k => k !== exceto);
-      return ks[(Math.random() * ks.length) | 0];
-    }
     function parseAns(raw, routing){
       if (!raw) return null;
       const clean = raw.replace(/```json|```/g, '').trim();
@@ -1097,15 +1089,11 @@
         const humor = ['sereno','provocador','gentil','enigma'].includes(p.humor)
           ? p.humor : 'gentil';
         const quem = (routing && ARCH[p.quem]) ? p.quem : curKey;
-        const prox = (ARCH[p.proximo] && p.proximo !== quem)
-          ? p.proximo : outraMente(quem);
-        return { t: limpa(p.resposta), m: humor, quem, prox,
-                 gancho: p.gancho ? limpa(p.gancho).slice(0, 90) : '' };
+        return { t: String(p.resposta), m: humor, quem };
       }catch(e){
-        const t = limpa(clean);
-        if (t.length < 4) return null;
-        return { t: t.slice(0, 700), m: 'gentil', quem: curKey,
-                 prox: outraMente(curKey), gancho: '' };
+        /* com a busca ligada, o JSON pode vir quebrado: usa o texto cru */
+        if (clean.length < 4) return null;
+        return { t: clean.slice(0, 700), m: 'gentil', quem: curKey };
       }
     }
 
@@ -1124,8 +1112,7 @@
       const ans = parseAns(raw, routing);
       if (ans) return ans;
       const fb = FALLBACKS[curKey];
-      return { t: fb[(Math.random() * fb.length) | 0], m: 'gentil', quem: curKey,
-               prox: outraMente(curKey), gancho: '', local: true };
+      return { t: fb[(Math.random() * fb.length) | 0], m: 'gentil', quem: curKey, local: true };
     }
 
     async function sendReply(text){
@@ -1148,41 +1135,32 @@
       convo.ans = await callConvo(true);
     }
 
-    /* o cartão da coxia: quem quer entrar em seguida, e com que gancho */
-    function showNextCard(prox, gancho){
-      pendingHO = { quem: prox, inter: true };
-      hoText.textContent = '✦ ' + ARCH[prox].nome + ' quer participar' +
-        (gancho ? ' — “' + gancho + '”' : '');
+    /* interjeição: outro arquétipo pediu a palavra */
+    function showHandoff(ans){
+      oracle.state = 'handoff';
+      oracle.agitTarget = 0;
+      askBar.classList.remove('busy');
+      pendingHO = { quem: ans.quem, ans };
+      hoText.textContent = '✦ ' + ARCH[ans.quem].nome + ' quer entrar nesta conversa';
       hoBox.classList.add('on');
+      answerBox.classList.add('on');
+      setEstado(ARCH[ans.quem].nome + ' se aproxima');
     }
     document.getElementById('hoYes').addEventListener('click', () => {
       if (!pendingHO) return;
       const ho = pendingHO;
       hideHandoff();
+      setArch(ho.quem, false);
+      syncPills();
       if (ho.opener){
-        setArch(ho.quem, false);
-        syncPills();
         setTimeout(() => beginConvo(true), 1200);
-        return;
-      }
-      if (ho.inter){
-        const anterior = ARQ.nome;
-        setArch(ho.quem, false);
-        syncPills();
-        convo.history.push({ role: 'user', content:
-          '[direção da sessão] ' + ARCH[ho.quem].nome +
-          ', responda diretamente à última fala de ' + anterior +
-          ': concorde, construa ou divirja com firmeza — e feche com uma pergunta curta ao criativo.' });
+      } else {
         oracle.state = 'convo';
-        convo.ans = null;
+        convo.ans = { t: ho.ans.t, m: ho.ans.m, quem: curKey };
         oracle.until = performance.now() / 1000 + 1.3;
-        askBar.classList.add('busy');
-        setEstado(ARCH[ho.quem].nome + ' entra na conversa');
-        oracle.agitTarget = 0.5;
-        (async () => { convo.ans = await callConvo(false); })();
       }
     });
-    document.getElementById('hoNo').addEventListener('click', () => {
+    document.getElementById('hoNo').addEventListener('click', async () => {
       if (!pendingHO) return;
       const ho = pendingHO;
       hideHandoff();
@@ -1194,7 +1172,11 @@
         setEstado('esperando');
         return;
       }
-      setEstado('a palavra é sua');
+      oracle.state = 'convo';
+      convo.ans = null;
+      oracle.until = performance.now() / 1000 + 0.8;
+      setEstado(ARQ.nome + ' responde');
+      convo.ans = await callConvo(false);
     });
 
     /* revela uma fala dela (usada na conversa) */
@@ -1237,13 +1219,9 @@
     /* distribui as vozes pt disponíveis pelo elenco, por gênero */
     function assignVoices(){
       try{
-        const todas = speechSynthesis.getVoices()
+        const vs = speechSynthesis.getVoices()
           .filter(v => (v.lang || '').toLowerCase().indexOf('pt') === 0);
-        const br = todas.filter(v =>
-          (v.lang || '').toLowerCase().replace('_', '-') === 'pt-br');
-        /* só recorre a vozes de Portugal se não houver NENHUMA brasileira */
-        const vs = br.length ? br : todas;
-        ptVoice = vs[0] || null;
+        ptVoice = vs.find(v => v.lang === 'pt-BR') || vs[0] || null;
         const femRe = /maria|luciana|joana|francisca|fernanda|camila|vitoria|leticia|raquel|ines|yara|female|feminin/i;
         const masRe = /daniel|felipe|ricardo|thiago|antonio|duarte|joaquim|donato|male|masculin/i;
         const fem = vs.filter(v => femRe.test(v.name));
@@ -1389,7 +1367,7 @@
     });
 
     /* ------- modo profundo: ela interpreta o hexagrama para o dilema ------- */
-    const DEEP_SYSTEM = 'Sintetize a sessão de criação até aqui: nomeie de 2 a 3 territórios criativos que emergiram (com títulos curtos e memoráveis), a tensão central da ideia, e UM próximo passo concreto. Máximo de 100 palavras, em português do Brasil, prosa direta e frases curtas; PROIBIDO asteriscos, markdown e listas. Termine com uma pergunta de decisão. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"..."}';
+    const DEEP_SYSTEM = 'Sintetize a sessão de criação até aqui: nomeie de 2 a 3 territórios criativos que emergiram (com títulos curtos e memoráveis), a tensão central da ideia, e UM próximo passo concreto. Máximo de 110 palavras, em prosa direta, sem listas com marcadores. Termine com uma pergunta de decisão. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"..."}';
 
     async function askDeep(){
       if (!convo.on) return;
@@ -1572,18 +1550,11 @@
         const c = convo.ans;
         convo.ans = null;
         if (c.quem && c.quem !== curKey){
-          /* a mente escolhida assume: metamorfose e, então, a fala */
-          setArch(c.quem, false);
-          syncPills();
-          convo.ans = { t: c.t, m: c.m, quem: curKey, prox: c.prox,
-                        gancho: c.gancho, local: c.local };
-          oracle.until = t + 1.2;
+          showHandoff(c);
         } else {
           convo.history.push({ role: 'assistant', content: '[' + ARQ.nome + '] ' + c.t });
           revealLine(t, c.t, c.m,
             '— ' + ARQ.nome + (c.local ? ' · resposta local' : '') + ' —');
-          /* sempre há alguém na coxia querendo entrar */
-          if (c.prox) showNextCard(c.prox, c.gancho);
         }
       }
       /* silêncio prolongado: ela puxa conversa sozinha */
