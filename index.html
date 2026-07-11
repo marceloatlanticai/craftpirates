@@ -800,7 +800,7 @@
       (async () => {
         const raw = await llm(
           'Extraia do texto um cartão de brief em JSON: {"marca":"","categoria":"","produto":"","publico":"","objetivo":"","tensao":"a tensão criativa central"}. Infira com bom senso o que faltar, marcando (inferido). Responda APENAS o JSON, sem markdown.',
-          [ { role: 'user', content: q } ]);
+          [ { role: 'user', content: q } ], 0, true);
         try{
           const c = JSON.parse(raw.replace(/```json|```/g, '').trim());
           convo.card = 'marca: ' + (c.marca || '?') + '; categoria: ' + (c.categoria || '?') +
@@ -994,7 +994,7 @@
     }
 
     /* ---- cliente unificado: Gemini (com Google Search) ou Claude ---- */
-    async function llm(system, messages, retry){
+    async function llm(system, messages, retry, cheap){
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 35000);
       try{
@@ -1002,9 +1002,13 @@
         if (USE_GEMINI){
           const ok = await ensureGeminiModel();
           if (!ok){ clearTimeout(timer); return null; }
+          /* tarefas burocráticas usam um flash: poupa a cota do modelo nobre */
+          const model = cheap
+            ? (geminiCandidates.find(n => n.indexOf('flash') !== -1) || GEMINI_MODEL)
+            : GEMINI_MODEL;
           const r = await fetch(
             'https://generativelanguage.googleapis.com/v1beta/models/' +
-            GEMINI_MODEL + ':generateContent?key=' + GEMINI_KEY,
+            model + ':generateContent?key=' + GEMINI_KEY,
             { method: 'POST', headers: { 'Content-Type': 'application/json' },
               signal: ctrl.signal,
               body: JSON.stringify({
@@ -1021,13 +1025,16 @@
           if (!r.ok){
             apiMsg = (data && data.error && data.error.message) || '';
             console.warn('[feita de pontos] erro gemini', status, apiMsg, data);
-            if (status === 404 && geminiCandidates.length > 1 && !retry){
+            if ((status === 404 || status === 429) &&
+                geminiCandidates.length > 1 && (retry || 0) < 2){
+              const antigo = GEMINI_MODEL;
               geminiCandidates.shift();
               GEMINI_MODEL = geminiCandidates[0];
-              console.warn('[feita de pontos] 404 no modelo; tentando', GEMINI_MODEL);
+              console.warn('[feita de pontos]', status, 'em', antigo,
+                '— descendo para', GEMINI_MODEL);
               setBrain(GEMINI_MODEL + ' + busca');
               clearTimeout(timer);
-              return llm(system, messages, true);
+              return llm(system, messages, (retry || 0) + 1, cheap);
             }
             setBrain(brainErr(null, status, apiMsg), true);
             clearTimeout(timer);
@@ -1042,7 +1049,7 @@
             clearTimeout(timer);
             return null;
           }
-          setBrain(GEMINI_MODEL + ' ✓');
+          if (!cheap) setBrain(GEMINI_MODEL + ' ✓');
         } else {
           const r = await fetch('https://api.anthropic.com/v1/messages', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
