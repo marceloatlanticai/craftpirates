@@ -137,7 +137,7 @@
   }
   #handoff{display:none;}
   #handoff.on{display:block;}
-  #deepBtn, #endBtn, .hobtn{
+  #deepBtn, #endBtn, #pdfBtn, .hobtn{
     display:none;
     margin-top:16px;
     background:transparent;
@@ -153,8 +153,9 @@
     transition:color .3s ease, border-color .3s ease, opacity .4s ease;
     font-family:inherit;
   }
-  #deepBtn:hover, #endBtn:hover, .hobtn:hover{color:var(--ink); border-color:rgba(233,227,213,.7);}
-  #deepBtn.on, #endBtn.on{display:inline-block;}
+  #deepBtn:hover, #endBtn:hover, #pdfBtn:hover, .hobtn:hover{color:var(--ink); border-color:rgba(233,227,213,.7);}
+  #deepBtn.on, #endBtn.on, #pdfBtn.on{display:inline-block;}
+  #pdfBtn{margin-left:10px;}
   .hobtn{display:inline-block; margin-left:6px; margin-right:6px;}
   #endBtn{margin-left:10px;}
   .answer .qecho{
@@ -293,6 +294,7 @@
     <button class="hobtn" id="hoNo" type="button">agora não</button>
   </div>
   <button id="deepBtn" type="button">✦ sintetizar sessão</button>
+  <button id="pdfBtn" type="button">salvar em pdf</button>
   <button id="endBtn" type="button">encerrar conversa</button>
 </div>
 
@@ -652,6 +654,26 @@
     document.getElementById('dotCount').textContent =
       TARGET.toLocaleString('pt-BR');
 
+    /* há uma sessão recente guardada? oferece a retomada */
+    setTimeout(() => {
+      try{
+        const bruto = localStorage.getItem(SAVE_KEY);
+        if (!bruto) return;
+        const s = JSON.parse(bruto);
+        if (s && s.historia && s.historia.length &&
+            Date.now() - s.ts < 7 * 24 * 3600 * 1000){
+          pendingHO = { resume: s };
+          const quando = new Date(s.ts).toLocaleString('pt-BR',
+            { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+          hoText.textContent = '✦ encontrei uma sessão de ' + quando + ' — retomar?';
+          hoBox.classList.add('on');
+          answerBox.classList.add('on');
+        } else {
+          limpaSessaoSalva();
+        }
+      }catch(e){}
+    }, 3200);
+
     /* -------------------------------------------------------
        pontos ambientes: poeira solta no escuro ao redor dela
        (coordenadas em fração da tela — sobrevivem ao resize)
@@ -765,6 +787,7 @@
     function busyOn(estado){
       askBar.classList.add('busy');
       deepBtn.classList.remove('on');
+      pdfBtn.classList.remove('on');
       qEcho.classList.remove('on');
       answerBox.classList.remove('on');
       aText.innerHTML = '';
@@ -779,7 +802,7 @@
     function ask(){
       const q = qInput.value.trim();
       if (!q) return;
-      if (oracle.state === 'handoff' && pendingHO && !pendingHO.opener){ hideHandoff(); }
+      if (pendingHO && !pendingHO.opener) hideHandoff();
       if (convo.on){ sendReply(q); return; }
       if (oracle.state === 'deep' || oracle.state === 'convo') return;
       /* o brief abre a sessão: o elenco decide quem trabalha primeiro */
@@ -826,8 +849,8 @@
       'O que você sente quando diz isso em voz alta?',
       'Se um amigo te dissesse isso, o que você responderia a ele?'
     ];
-    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo. Falas do elenco vêm marcadas com [nome]; sem marca é a pessoa. REGRAS DE CONCRETUDE: toda contribuição deve conter ao menos UMA referência nomeada e verificável (campanha, marca, caso, dado, autor) aplicada a ESTE brief; proibido conselho que sirva para qualquer marca — se servir, reescreva antes de responder; proibido perguntar sem antes contribuir. Estrutura do turno: siga o seu protocolo e feche com UMA pergunta que afie a ideia. Até 110 palavras. EXEMPLO RUIM: que tal explorar o lado emocional do consumidor? EXEMPLO BOM: a categoria de sopa vende inverno e família desde os anos 1930 — o M\'m! M\'m! Good! da Campbell\'s é o hino disso; desk lunch quebra os dois códigos de uma vez: calor sem frio, refeição sem mesa posta; e se a marca assumir a sopa que não pede ocasião? Qual código você quebra primeiro: o clima ou a companhia? Português. Jamais mencione ser IA. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"..."}' +
-      (USE_GEMINI ? ' USO DA BUSCA: antes de responder, pesquise UM fato relevante — movimento recente da marca do brief ou campanha análoga real — e cite nome e ano; se nada útil vier, diga explicitamente que está sem dados ao vivo neste turno.' : '');
+    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo brasileiro. Falas do elenco vêm marcadas com [nome]; falas marcadas [direção da sessão] são instruções do palco; sem marca é a pessoa. IDIOMA: português do Brasil, sempre — use você e a gente; jamais português europeu. ESTILO: frases curtas e diretas; máximo de 60 palavras no total; PROIBIDO asteriscos, markdown, listas, títulos e emojis. CONCRETUDE: inclua UMA referência nomeada e verificável (campanha, marca, caso ou dado) aplicada a ESTE brief — conselho que serve para qualquer marca deve ser reescrito antes de responder. Siga o seu protocolo e feche com UMA pergunta curta. Exemplo de concretude: a Campbell\'s vende sopa como inverno e família desde 1930; desk lunch quebra os dois códigos — e se a marca assumir a sopa sem ocasião? DIÁLOGO: você pode concordar, construir ou divergir com firmeza das falas anteriores do elenco. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"...","proximo":"maga|vidente|sabio|heroina|amante|inocente|explorador|comum — outra mente, diferente de quem respondeu, que teria algo a acrescentar ou contestar agora","gancho":"em até 12 palavras, o que essa mente quer dizer"}' +
+      (USE_GEMINI ? ' USO DA BUSCA: antes de responder, pesquise UM fato relevante — movimento recente da marca do brief ou campanha análoga real — e cite nome e ano; se nada útil vier, diga que está sem dados ao vivo neste turno.' : '');
 
     const PLACEHOLDER_ORACULO = 'cole seu brief ou sua ideia bruta…';
     const PLACEHOLDER_CONVO = 'responda a ele(a)…';
@@ -856,6 +879,7 @@
     function startConvo(spontaneous){
       if (convo.on) return;
       /* às vezes é OUTRO arquétipo que quer puxar conversa */
+      if (pendingHO) return;
       if (spontaneous && Math.random() < 0.5){
         const ks = Object.keys(ARCH).filter(k => k !== curKey);
         const k = ks[(Math.random() * ks.length) | 0];
@@ -883,6 +907,8 @@
       qInput.placeholder = PLACEHOLDER_ORACULO;
       qBtn.textContent = 'trabalhar a ideia';
       endBtn.classList.remove('on');
+      deepBtn.classList.remove('on');
+      pdfBtn.classList.remove('on');
       qEcho.classList.remove('on');
       answerBox.classList.remove('on');
       aText.innerHTML = '';
@@ -891,9 +917,112 @@
       oracle.state = 'idle';
       nextChange = performance.now() / 1000 + 1.5;
       setEstado('esperando');
+      limpaSessaoSalva();
       try{ speechSynthesis.cancel(); }catch(e){}
     }
+    /* ------- memória da sessão: sobrevive a recarregamentos ------- */
+    const SAVE_KEY = 'fdp_sessao_v1';
+    function salvaSessao(){
+      try{
+        if (!convo.on || !convo.history.length) return;
+        localStorage.setItem(SAVE_KEY, JSON.stringify({
+          ts: Date.now(), historia: convo.history, card: convo.card,
+          turns: convo.turns, brief: oracle.lastQ, quem: curKey
+        }));
+      }catch(e){}
+    }
+    function limpaSessaoSalva(){
+      try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+    }
+
     endBtn.addEventListener('click', endConvo);
+
+    /* ------- salvar a sessão em PDF (via diálogo de impressão) ------- */
+    const pdfBtn = document.getElementById('pdfBtn');
+    function escHtml(s){
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+    function buildSessionDoc(){
+      const quando = new Date().toLocaleString('pt-BR',
+        { dateStyle: 'long', timeStyle: 'short' });
+      let corpo = '';
+      let sinteseNaProxima = false;
+      for (const m of convo.history){
+        const c = m.content;
+        if (c.indexOf('[direção da sessão]') === 0){ sinteseNaProxima = false; continue; }
+        if (c.indexOf('[pedido de síntese]') === 0){ sinteseNaProxima = true; continue; }
+        if (m.role === 'user'){
+          corpo += '<div class="fala voce"><div class="quem">você</div><p>' +
+            escHtml(c) + '</p></div>';
+        } else {
+          const mt = c.match(/^\[([^\]]+)\]\s*(.*)$/s);
+          const nome = mt ? mt[1] : 'elenco';
+          const texto = mt ? mt[2] : c;
+          corpo += '<div class="fala' + (sinteseNaProxima ? ' sintese' : '') +
+            '"><div class="quem">' + escHtml(nome) +
+            (sinteseNaProxima ? ' · síntese ✦' : '') + '</div><p>' +
+            escHtml(texto) + '</p></div>';
+          sinteseNaProxima = false;
+        }
+      }
+      return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+        '<title>feita de pontos — sessão de criação</title><style>' +
+        'body{font-family:Georgia,serif;color:#1a1a1a;max-width:660px;' +
+        'margin:0 auto;padding:48px 24px;line-height:1.6;}' +
+        'h1{font-size:22px;font-weight:400;font-style:italic;margin:0 0 4px;}' +
+        '.meta{font-family:Helvetica,Arial,sans-serif;font-size:10px;' +
+        'letter-spacing:.18em;text-transform:uppercase;color:#888;margin-bottom:28px;}' +
+        '.brief{background:#f4f2ee;padding:16px 20px;border-radius:8px;' +
+        'font-size:14px;margin-bottom:8px;}' +
+        '.card{font-family:Helvetica,Arial,sans-serif;font-size:11px;color:#666;' +
+        'margin-bottom:32px;}' +
+        '.fala{margin-bottom:22px;page-break-inside:avoid;}' +
+        '.quem{font-family:Helvetica,Arial,sans-serif;font-size:10px;' +
+        'letter-spacing:.22em;text-transform:uppercase;color:#999;margin-bottom:4px;}' +
+        '.fala p{margin:0;font-size:14.5px;}' +
+        '.voce p{color:#333;font-style:italic;}' +
+        '.sintese{background:#f4f2ee;padding:16px 20px;border-radius:8px;}' +
+        '.sintese .quem{color:#555;}' +
+        '.rodape{margin-top:40px;font-family:Helvetica,Arial,sans-serif;' +
+        'font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#aaa;}' +
+        '</style></head><body>' +
+        '<h1>feita de pontos</h1>' +
+        '<div class="meta">sessão de criação — ' + escHtml(quando) + '</div>' +
+        (oracle.lastQ ? '<div class="brief"><strong>brief:</strong> ' +
+          escHtml(oracle.lastQ) + '</div>' : '') +
+        (convo.card ? '<div class="card">leitura — ' + escHtml(convo.card) + '</div>'
+          : '<div class="card"></div>') +
+        corpo +
+        '<div class="rodape">gerado por feita de pontos · oito mentes de pontos</div>' +
+        '</body></html>';
+    }
+    function exportPDF(){
+      if (!convo.history.length) return;
+      const html = buildSessionDoc();
+      try{
+        const fr = document.createElement('iframe');
+        fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        document.body.appendChild(fr);
+        fr.contentDocument.open();
+        fr.contentDocument.write(html);
+        fr.contentDocument.close();
+        setTimeout(() => {
+          try{
+            fr.contentWindow.focus();
+            fr.contentWindow.print();
+          }catch(e){ baixaHtml(html); }
+          setTimeout(() => fr.remove(), 4000);
+        }, 350);
+      }catch(e){ baixaHtml(html); }
+    }
+    function baixaHtml(html){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+      a.download = 'sessao-feita-de-pontos.html';
+      a.click();
+    }
+    pdfBtn.addEventListener('click', exportPDF);
 
     /* seletor de arquétipos */
     document.getElementById('arcs').addEventListener('click', e => {
@@ -1081,6 +1210,14 @@
         return null;
       }
     }
+    function limpa(s){
+      return String(s).replace(/\*+/g, '').replace(/[#_`~]+/g, ' ')
+        .replace(/\s{2,}/g, ' ').trim();
+    }
+    function outraMente(exceto){
+      const ks = Object.keys(ARCH).filter(k => k !== exceto);
+      return ks[(Math.random() * ks.length) | 0];
+    }
     function parseAns(raw, routing){
       if (!raw) return null;
       const clean = raw.replace(/```json|```/g, '').trim();
@@ -1089,11 +1226,15 @@
         const humor = ['sereno','provocador','gentil','enigma'].includes(p.humor)
           ? p.humor : 'gentil';
         const quem = (routing && ARCH[p.quem]) ? p.quem : curKey;
-        return { t: String(p.resposta), m: humor, quem };
+        const prox = (ARCH[p.proximo] && p.proximo !== quem)
+          ? p.proximo : outraMente(quem);
+        return { t: limpa(p.resposta), m: humor, quem, prox,
+                 gancho: p.gancho ? limpa(p.gancho).slice(0, 90) : '' };
       }catch(e){
-        /* com a busca ligada, o JSON pode vir quebrado: usa o texto cru */
-        if (clean.length < 4) return null;
-        return { t: clean.slice(0, 700), m: 'gentil', quem: curKey };
+        const t = limpa(clean);
+        if (t.length < 4) return null;
+        return { t: t.slice(0, 700), m: 'gentil', quem: curKey,
+                 prox: outraMente(curKey), gancho: '' };
       }
     }
 
@@ -1112,7 +1253,8 @@
       const ans = parseAns(raw, routing);
       if (ans) return ans;
       const fb = FALLBACKS[curKey];
-      return { t: fb[(Math.random() * fb.length) | 0], m: 'gentil', quem: curKey, local: true };
+      return { t: fb[(Math.random() * fb.length) | 0], m: 'gentil', quem: curKey,
+               prox: outraMente(curKey), gancho: '', local: true };
     }
 
     async function sendReply(text){
@@ -1135,32 +1277,72 @@
       convo.ans = await callConvo(true);
     }
 
-    /* interjeição: outro arquétipo pediu a palavra */
-    function showHandoff(ans){
-      oracle.state = 'handoff';
-      oracle.agitTarget = 0;
-      askBar.classList.remove('busy');
-      pendingHO = { quem: ans.quem, ans };
-      hoText.textContent = '✦ ' + ARCH[ans.quem].nome + ' quer entrar nesta conversa';
+    /* o cartão da coxia: quem quer entrar em seguida, e com que gancho */
+    function showNextCard(prox, gancho){
+      pendingHO = { quem: prox, inter: true };
+      hoText.textContent = '✦ ' + ARCH[prox].nome + ' quer participar' +
+        (gancho ? ' — “' + gancho + '”' : '');
       hoBox.classList.add('on');
-      answerBox.classList.add('on');
-      setEstado(ARCH[ans.quem].nome + ' se aproxima');
     }
     document.getElementById('hoYes').addEventListener('click', () => {
       if (!pendingHO) return;
       const ho = pendingHO;
       hideHandoff();
-      setArch(ho.quem, false);
-      syncPills();
       if (ho.opener){
+        setArch(ho.quem, false);
+        syncPills();
         setTimeout(() => beginConvo(true), 1200);
-      } else {
+        return;
+      }
+      if (ho.resume){
+        const s = ho.resume;
+        convo.on = true;
+        convo.history = s.historia;
+        convo.card = s.card || null;
+        convo.turns = s.turns || 0;
+        oracle.lastQ = s.brief || null;
+        if (s.quem && ARCH[s.quem] && s.quem !== curKey){
+          setArch(s.quem, false);
+          syncPills();
+        }
+        qInput.placeholder = PLACEHOLDER_CONVO;
+        qBtn.textContent = 'responder';
+        endBtn.classList.add('on');
+        /* reexibe a última fala do elenco */
+        let ultima = null, nomeU = ARQ.nome;
+        for (let i = s.historia.length - 1; i >= 0; i--){
+          const m2 = s.historia[i];
+          if (m2.role === 'assistant'){
+            const mt = m2.content.match(/^\[([^\]]+)\]\s*([\s\S]*)$/);
+            nomeU = mt ? mt[1] : nomeU;
+            ultima = mt ? mt[2] : m2.content;
+            break;
+          }
+        }
+        if (ultima){
+          revealLine(performance.now() / 1000, ultima, 'sereno',
+            '— sessão retomada · ' + nomeU + ' —');
+        }
+        return;
+      }
+      if (ho.inter){
+        const anterior = ARQ.nome;
+        setArch(ho.quem, false);
+        syncPills();
+        convo.history.push({ role: 'user', content:
+          '[direção da sessão] ' + ARCH[ho.quem].nome +
+          ', responda diretamente à última fala de ' + anterior +
+          ': concorde, construa ou divirja com firmeza — e feche com uma pergunta curta ao criativo.' });
         oracle.state = 'convo';
-        convo.ans = { t: ho.ans.t, m: ho.ans.m, quem: curKey };
+        convo.ans = null;
         oracle.until = performance.now() / 1000 + 1.3;
+        askBar.classList.add('busy');
+        setEstado(ARCH[ho.quem].nome + ' entra na conversa');
+        oracle.agitTarget = 0.5;
+        (async () => { convo.ans = await callConvo(false); })();
       }
     });
-    document.getElementById('hoNo').addEventListener('click', async () => {
+    document.getElementById('hoNo').addEventListener('click', () => {
       if (!pendingHO) return;
       const ho = pendingHO;
       hideHandoff();
@@ -1172,11 +1354,13 @@
         setEstado('esperando');
         return;
       }
-      oracle.state = 'convo';
-      convo.ans = null;
-      oracle.until = performance.now() / 1000 + 0.8;
-      setEstado(ARQ.nome + ' responde');
-      convo.ans = await callConvo(false);
+      if (ho.resume){
+        limpaSessaoSalva();
+        answerBox.classList.remove('on');
+        setEstado('esperando');
+        return;
+      }
+      setEstado('a palavra é sua');
     });
 
     /* revela uma fala dela (usada na conversa) */
@@ -1209,7 +1393,11 @@
       requestAnimationFrame(() => requestAnimationFrame(() => {
         spans.forEach(sp => sp.classList.add('on'));
       }));
-      if (convo.on && convo.history.length >= 2) deepBtn.classList.add('on');
+      if (convo.on && convo.history.length >= 2){
+        deepBtn.classList.add('on');
+        pdfBtn.classList.add('on');
+      }
+      salvaSessao();
       askBar.classList.remove('busy');
     }
 
@@ -1219,9 +1407,13 @@
     /* distribui as vozes pt disponíveis pelo elenco, por gênero */
     function assignVoices(){
       try{
-        const vs = speechSynthesis.getVoices()
+        const todas = speechSynthesis.getVoices()
           .filter(v => (v.lang || '').toLowerCase().indexOf('pt') === 0);
-        ptVoice = vs.find(v => v.lang === 'pt-BR') || vs[0] || null;
+        const br = todas.filter(v =>
+          (v.lang || '').toLowerCase().replace('_', '-') === 'pt-br');
+        /* só recorre a vozes de Portugal se não houver NENHUMA brasileira */
+        const vs = br.length ? br : todas;
+        ptVoice = vs[0] || null;
         const femRe = /maria|luciana|joana|francisca|fernanda|camila|vitoria|leticia|raquel|ines|yara|female|feminin/i;
         const masRe = /daniel|felipe|ricardo|thiago|antonio|duarte|joaquim|donato|male|masculin/i;
         const fem = vs.filter(v => femRe.test(v.name));
@@ -1367,7 +1559,7 @@
     });
 
     /* ------- modo profundo: ela interpreta o hexagrama para o dilema ------- */
-    const DEEP_SYSTEM = 'Sintetize a sessão de criação até aqui: nomeie de 2 a 3 territórios criativos que emergiram (com títulos curtos e memoráveis), a tensão central da ideia, e UM próximo passo concreto. Máximo de 110 palavras, em prosa direta, sem listas com marcadores. Termine com uma pergunta de decisão. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"..."}';
+    const DEEP_SYSTEM = 'Sintetize a sessão de criação até aqui: nomeie de 2 a 3 territórios criativos que emergiram (com títulos curtos e memoráveis), a tensão central da ideia, e UM próximo passo concreto. Máximo de 100 palavras, em português do Brasil, prosa direta e frases curtas; PROIBIDO asteriscos, markdown e listas. Termine com uma pergunta de decisão. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"..."}';
 
     async function askDeep(){
       if (!convo.on) return;
@@ -1550,11 +1742,18 @@
         const c = convo.ans;
         convo.ans = null;
         if (c.quem && c.quem !== curKey){
-          showHandoff(c);
+          /* a mente escolhida assume: metamorfose e, então, a fala */
+          setArch(c.quem, false);
+          syncPills();
+          convo.ans = { t: c.t, m: c.m, quem: curKey, prox: c.prox,
+                        gancho: c.gancho, local: c.local };
+          oracle.until = t + 1.2;
         } else {
           convo.history.push({ role: 'assistant', content: '[' + ARQ.nome + '] ' + c.t });
           revealLine(t, c.t, c.m,
             '— ' + ARQ.nome + (c.local ? ' · resposta local' : '') + ' —');
+          /* sempre há alguém na coxia querendo entrar */
+          if (c.prox) showNextCard(c.prox, c.gancho);
         }
       }
       /* silêncio prolongado: ela puxa conversa sozinha */
