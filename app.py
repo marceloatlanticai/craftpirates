@@ -15,7 +15,8 @@ st.markdown(
     <style>
       #MainMenu, header, footer {visibility: hidden;}
       .block-container {padding: 0 !important; max-width: 100% !important;}
-      iframe {display: block;}
+      [data-testid="stAppViewContainer"] {overflow: hidden;}
+      .stApp iframe {display: block; height: calc(100vh - 4px) !important; width: 100% !important;}
     </style>
     """,
     unsafe_allow_html=True,
@@ -31,4 +32,4 @@ except Exception:
     gemini_key = ""
 html = html.replace("__GEMINI_KEY__", gemini_key)
 
-components.html(html, height=920, scrolling=False)
+components.html(html, height=760, scrolling=False)
