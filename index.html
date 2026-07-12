@@ -101,32 +101,48 @@
     z-index:0;
   }
 
-  /* resposta do oráculo — ancorada embaixo, fora do rosto */
+  /* diálogo em colunas: fala nova à direita, anterior à esquerda */
   .answer{
     position:fixed;
-    left:50%;
-    bottom:clamp(92px, 15vh, 150px);
-    transform:translateX(-50%);
-    width:min(680px, 92vw);
-    text-align:center;
+    right:clamp(16px, 3.5vw, 56px);
+    top:50%;
+    transform:translateY(-50%);
+    width:min(320px, 25vw);
+    max-height:76vh;
+    text-align:left;
     pointer-events:none;
     user-select:none;
     z-index:1;
   }
-  /* véu escuro suave atrás do texto, para legibilidade */
   .answer::before{
     content:'';
     position:absolute;
-    inset:-24px -40px;
+    inset:-22px -26px;
     background:radial-gradient(ellipse at center,
-      rgba(6,6,9,.5) 0%,
-      rgba(6,6,9,.28) 55%,
-      rgba(6,6,9,0) 80%);
+      rgba(6,6,9,.55) 0%, rgba(6,6,9,.3) 55%, rgba(6,6,9,0) 80%);
     opacity:0;
     transition:opacity 1.2s ease;
     z-index:-1;
   }
   .answer.on::before{opacity:1;}
+  .prevbox{
+    right:auto;
+    left:clamp(16px, 3.5vw, 56px);
+    opacity:0;
+    transition:opacity .8s ease;
+  }
+  .prevbox.on{opacity:.72;}
+  @media (max-width:900px){
+    .prevbox{display:none !important;}
+    .answer{
+      right:50%;
+      transform:translate(50%, 0);
+      top:auto;
+      bottom:clamp(92px, 15vh, 150px);
+      width:min(560px, 88vw);
+      text-align:center;
+    }
+  }
   .hotext{
     margin-top:16px;
     font-family:Didot, "Bodoni MT", "Playfair Display", Georgia, serif;
@@ -160,10 +176,10 @@
   #endBtn{margin-left:10px;}
   .answer .qecho{
     font-size:10px;
-    letter-spacing:.3em;
+    letter-spacing:.24em;
     text-transform:uppercase;
     color:var(--dim);
-    margin-bottom:18px;
+    margin-bottom:8px;
     opacity:0;
     transition:opacity 1s ease;
     text-shadow:0 0 14px rgba(10,10,13,.95), 0 0 26px rgba(10,10,13,.9);
@@ -173,8 +189,8 @@
     font-family:Didot, "Bodoni MT", "Playfair Display", Georgia, serif;
     font-style:italic;
     font-weight:400;
-    font-size:clamp(15px, 2vw, 20px);
-    line-height:1.68;
+    font-size:clamp(12.5px, 1.15vw, 15px);
+    line-height:1.6;
     letter-spacing:.01em;
     text-shadow:0 0 12px rgba(10,10,13,.95), 0 0 24px rgba(10,10,13,.92), 0 0 42px rgba(10,10,13,.85);
   }
@@ -296,6 +312,11 @@
 </div>
 
 <div class="bottomfade"></div>
+
+<div class="answer prevbox" id="prevBox">
+  <div class="qecho" id="prevQuem"></div>
+  <div class="text" id="prevText"></div>
+</div>
 
 <div class="answer" id="answerBox">
   <div class="qecho" id="qEcho"></div>
@@ -842,6 +863,10 @@
     const deepBtn = document.getElementById('deepBtn');
     const answerBox = document.getElementById('answerBox');
     const retorno = document.getElementById('retorno');
+    const prevBox = document.getElementById('prevBox');
+    const prevQuem = document.getElementById('prevQuem');
+    const prevText = document.getElementById('prevText');
+    let lastQuem = '', lastTexto = '';
 
     function busyOn(estado){
       askBar.classList.add('busy');
@@ -933,7 +958,7 @@
       qBtn.textContent = 'responder';
       deepBtn.classList.remove('on');
       const t = performance.now() / 1000;
-      revealLine(t, opener, 'enigma', spontaneous ? '— ' + ARQ.nome + ' puxou conversa —' : '— conversa —');
+      revealLine(t, opener, 'enigma', ARQ.nome + (spontaneous ? ' · puxou conversa' : ''));
       endBtn.classList.add('on');
     }
     function startConvo(spontaneous){
@@ -974,6 +999,10 @@
       aText.innerHTML = '';
       retorno.classList.remove('on');
       retorno.textContent = '';
+      prevBox.classList.remove('on');
+      prevQuem.textContent = '';
+      prevText.textContent = '';
+      lastQuem = ''; lastTexto = '';
       oracle.state = 'idle';
       nextChange = performance.now() / 1000 + 1.5;
       setEstado('esperando');
@@ -1399,7 +1428,7 @@
         }
         if (ultima){
           revealLine(performance.now() / 1000, ultima, 'sereno',
-            '— sessão retomada · ' + nomeU + ' —');
+            nomeU + ' · sessão retomada');
         }
         return;
       }
@@ -1452,7 +1481,13 @@
       nextChange = Infinity;
       setEstado(target.n);
 
-      qEcho.textContent = echoLabel || '— conversa —';
+      const rotulo = (echoLabel || ARQ.nome);
+      if (lastTexto){
+        prevQuem.textContent = lastQuem;
+        prevText.textContent = lastTexto;
+        prevBox.classList.add('on');
+      }
+      qEcho.textContent = rotulo + ':';
       qEcho.classList.add('on');
       answerBox.classList.add('on');
       /* fontes são preenchidas depois, pela fala que as tiver */
@@ -1472,6 +1507,8 @@
       requestAnimationFrame(() => requestAnimationFrame(() => {
         spans.forEach(sp => sp.classList.add('on'));
       }));
+      lastQuem = rotulo + ':';
+      lastTexto = text;
       if (convo.on && convo.history.length >= 2){
         deepBtn.classList.add('on');
         pdfBtn.classList.add('on');
@@ -1727,12 +1764,9 @@
       canvas.width = W * DPR; canvas.height = H * DPR;
       canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      /* palco: faixa superior livre (título/pílulas) e inferior (texto) */
-      const topPad = Math.min(120, H * 0.14);
-      const botPad = Math.min(210, H * 0.26);
-      scale = Math.min((H - topPad - botPad) / SH, W / SW * 1.35) * 0.98;
+      scale = Math.min(H / SH, W / SW * 1.35) * 0.98;
       offX = (W - SW * scale) / 2;
-      offY = topPad + (H - topPad - botPad - SH * scale) / 2;
+      offY = (H - SH * scale) / 2;
     }
     resize();
     window.addEventListener('resize', resize);
@@ -1820,7 +1854,7 @@
         const marcaS = mostraFontes(d.ans.fontes);
         convo.history.push({ role: 'assistant',
           content: '[' + ARQ.nome + '] ' + d.ans.t + marcaS });
-        revealLine(t, d.ans.t, d.ans.m, '✦ síntese da sessão ✦');
+        revealLine(t, d.ans.t, d.ans.m, ARQ.nome + ' · síntese ✦');
       }
       /* conversa: a resposta chegou */
       if (oracle.state === 'convo' && convo.ans && t > oracle.until){
@@ -1838,7 +1872,7 @@
           convo.history.push({ role: 'assistant',
             content: '[' + ARQ.nome + '] ' + c.t + marca });
           revealLine(t, c.t, c.m,
-            '— ' + ARQ.nome + (c.local ? ' · resposta local' : '') + ' —');
+            ARQ.nome + (c.local ? ' · resposta local' : ''));
           /* sempre há alguém na coxia querendo entrar */
           if (c.prox) showNextCard(c.prox, c.gancho);
         }
