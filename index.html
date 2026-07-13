@@ -101,6 +101,55 @@
     z-index:0;
   }
 
+  /* o pensamento: painel central enquanto a mente formula */
+  .thinking{
+    position:fixed;
+    left:50%; top:50%;
+    transform:translate(-50%, -50%);
+    text-align:center;
+    pointer-events:none;
+    user-select:none;
+    opacity:0;
+    transition:opacity .6s ease;
+    z-index:2;
+  }
+  .thinking.on{opacity:1;}
+  .thinking .tname{
+    font-family:Didot, "Bodoni MT", Georgia, serif;
+    font-style:italic;
+    font-size:clamp(18px, 2.2vw, 26px);
+    color:var(--ink);
+    text-shadow:0 0 20px rgba(6,6,9,.95), 0 0 40px rgba(6,6,9,.9);
+    margin-bottom:10px;
+  }
+  .thinking .tphase{
+    font-size:10px;
+    letter-spacing:.3em;
+    text-transform:uppercase;
+    color:var(--dim);
+    text-shadow:0 0 14px rgba(6,6,9,.95);
+    margin-bottom:14px;
+    min-height:12px;
+  }
+  .thinking .tbar{
+    width:130px; height:1px;
+    margin:0 auto;
+    background:rgba(143,138,125,.25);
+    overflow:hidden;
+    position:relative;
+  }
+  .thinking .tbar i{
+    position:absolute; inset:0;
+    display:block;
+    background:linear-gradient(90deg, transparent, var(--ink), transparent);
+    transform:translateX(-100%);
+    animation:sweep 1.6s ease-in-out infinite;
+  }
+  @keyframes sweep{
+    0%{transform:translateX(-100%);}
+    100%{transform:translateX(100%);}
+  }
+
   /* diálogo em colunas: fala nova à direita, anterior à esquerda */
   .answer{
     position:fixed;
@@ -317,6 +366,12 @@
 </div>
 
 <div class="bottomfade"></div>
+
+<div class="thinking" id="thinking">
+  <div class="tname" id="tName"></div>
+  <div class="tphase" id="tPhase"></div>
+  <div class="tbar"><i></i></div>
+</div>
 
 <div class="answer prevbox" id="prevBox">
   <div class="qecho" id="prevQuem"></div>
@@ -744,9 +799,11 @@
                            Math.min(SH - 1, Math.max(0, y)));
         const pr = lumE * Math.exp(-d / HSIG);
         if (Math.random() >= pr) continue;
-        out.push(haloDot(x, y,
+        const hd = haloDot(x, y,
           Math.min(0.55, 0.1 + pr * 0.5),
-          (0.45 + Math.random() * 0.55) * cfg.dotR));
+          (0.45 + Math.random() * 0.55) * cfg.dotR);
+        hd.hx = x;
+        out.push(hd);
       }
       /* completa a contagem com poeira remota tênue (paridade da metamorfose) */
       while (out.length < haloGoal){
@@ -928,6 +985,7 @@
       convo.card = null;
       convo.turns = 0;
       fatosSessao = [];
+      bibliografia = [];
       qInput.placeholder = PLACEHOLDER_CONVO;
       qBtn.textContent = 'responder';
       endBtn.classList.add('on');
@@ -935,6 +993,7 @@
       /* leitura silenciosa: extrai o cartão do brief antes da primeira fala */
       askBar.classList.add('busy');
       setEstado('lendo o brief…');
+      pensa(ARQ.nome, ['lendo o brief', 'destilando a tensão']);
       oracle.agitTarget = 0.5;
       qInput.value = '';
       qInput.blur();
@@ -972,7 +1031,7 @@
       'O que você sente quando diz isso em voz alta?',
       'Se um amigo te dissesse isso, o que você responderia a ele?'
     ];
-    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo brasileiro. Falas do elenco vêm marcadas com [nome]; [direção da sessão] são instruções do palco; sem marca é a pessoa. IDIOMA: português do Brasil (você, a gente); jamais português europeu. ESTRUTURA OBRIGATÓRIA DO SEU TURNO, nesta ordem: (1) UMA frase reagindo à fala anterior do elenco — concorde, construa ou divirja, citando o nome de quem falou; se você é o primeiro a falar, responda diretamente à pergunta do criativo com posição clara (sim, não ou depende) e o porquê; (2) UMA a DUAS frases com a sua contribuição, em linguagem literal e direta — diga o que fazer e por que funciona, como se explicasse a um colega; (3) UMA referência real e nomeada, no máximo — campanha, marca, caso, autor ou dado — mostrando em uma frase o que ela ensina para ESTE caso; (4) UMA pergunta final curta, concreta e respondível (que peça uma escolha, um exemplo ou uma decisão — jamais uma charada). CLAREZA ACIMA DE TUDO: se uma frase sua puder ser lida de dois jeitos, reescreva. Metáfora só depois do argumento, nunca no lugar dele. Sem aforismos herméticos. Máximo de 85 palavras. PROIBIDO: asteriscos, markdown, listas, emojis, mais de uma referência por turno, conselho que serviria para qualquer marca. HONESTIDADE FACTUAL: a marca ou produto do brief pode ser fictício ou novo — nunca invente notícias, lançamentos, campanhas ou datas sobre ele; fale de fatos apenas quando forem de marcas e casos que você tem certeza que existem, ou que apareçam nas fontes desta sessão. Se não tiver fato seguro, argumente sem fato e diga que falta dado. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"...","proximo":"maga|vidente|sabio|heroina|amante|inocente|explorador|comum|diretora|cerebro — outra mente, diferente de quem respondeu, que teria algo a acrescentar ou contestar agora","gancho":"em até 12 palavras, o que essa mente quer dizer"}' +
+    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo brasileiro. Falas do elenco vêm marcadas com [nome]; [direção da sessão] são instruções do palco; sem marca é a pessoa. IDIOMA: português do Brasil (você, a gente); jamais português europeu. ESTRUTURA OBRIGATÓRIA DO SEU TURNO, nesta ordem: (1) UMA frase reagindo à fala anterior do elenco — concorde, construa ou divirja, citando o nome de quem falou; se você é o primeiro a falar, responda diretamente à pergunta do criativo com posição clara (sim, não ou depende) e o porquê; (2) UMA a DUAS frases com a sua contribuição, em linguagem literal e direta — diga o que fazer e por que funciona, como se explicasse a um colega; (3) UMA referência real e nomeada, no máximo — campanha, marca, caso, autor ou dado — mostrando em uma frase o que ela ensina para ESTE caso; (4) UMA pergunta final curta, concreta e respondível (que peça uma escolha, um exemplo ou uma decisão — jamais uma charada). CLAREZA ACIMA DE TUDO: se uma frase sua puder ser lida de dois jeitos, reescreva. Metáfora só depois do argumento, nunca no lugar dele. Sem aforismos herméticos. Máximo de 85 palavras. PROIBIDO: asteriscos, markdown, listas, emojis, mais de uma referência por turno, conselho que serviria para qualquer marca. HONESTIDADE FACTUAL: a marca ou produto do brief pode ser fictício ou novo — nunca invente notícias, lançamentos, campanhas ou datas sobre ele; fale de fatos apenas quando forem de marcas e casos que você tem certeza que existem, ou que apareçam nas fontes desta sessão. Se não tiver fato seguro, argumente sem fato e diga que falta dado. NUNCA cite relatório, estudo ou campanha com nome e ano se ele não apareceu nas fontes desta sessão nem é de conhecimento sólido e amplamente conhecido — na dúvida, prefira o princípio sem a citação. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"...","proximo":"maga|vidente|sabio|heroina|amante|inocente|explorador|comum|diretora|cerebro — outra mente, diferente de quem respondeu, que teria algo a acrescentar ou contestar agora","gancho":"em até 12 palavras, o que essa mente quer dizer"}' +
       (USE_GEMINI ? ' USO DA BUSCA: pesquise antes de responder — monte a consulta com a CATEGORIA e o problema do brief mais o ano atual (nunca pesquise a marca do brief como se ela existisse); priorize casos e dados dos últimos 3 anos; só afirme fatos que aparecerem nas fontes retornadas, citando nome e ano. Se a busca nada trouxer, diga que está sem dados ao vivo neste turno e argumente sem fato.' : '');
 
     const PLACEHOLDER_ORACULO = 'cole seu brief ou sua ideia bruta…';
@@ -1054,7 +1113,8 @@
         if (!convo.on || !convo.history.length) return;
         localStorage.setItem(SAVE_KEY, JSON.stringify({
           ts: Date.now(), historia: convo.history, card: convo.card,
-          turns: convo.turns, brief: oracle.lastQ, quem: curKey
+          turns: convo.turns, brief: oracle.lastQ, quem: curKey,
+          biblio: bibliografia, fatos: fatosSessao
         }));
       }catch(e){}
     }
@@ -1113,6 +1173,14 @@
         '.sintese .quem{color:#555;}' +
         '.rodape{margin-top:40px;font-family:Helvetica,Arial,sans-serif;' +
         'font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#aaa;}' +
+        '.refs{margin-top:38px;padding-top:20px;border-top:1px solid #e2ded6;' +
+        'page-break-inside:avoid;}' +
+        '.refs h2{font-family:Helvetica,Arial,sans-serif;font-size:10px;' +
+        'letter-spacing:.22em;text-transform:uppercase;color:#999;font-weight:400;' +
+        'margin:0 0 12px;}' +
+        '.refs ol{margin:0;padding-left:18px;}' +
+        '.refs li{font-size:12px;line-height:1.5;margin-bottom:7px;color:#444;}' +
+        '.refs a{color:#666;text-decoration:none;word-break:break-all;font-size:10.5px;}' +
         '</style></head><body>' +
         '<h1>feita de pontos</h1>' +
         '<div class="meta">sessão de criação — ' + escHtml(quando) + '</div>' +
@@ -1121,7 +1189,14 @@
         (convo.card ? '<div class="card">leitura — ' + escHtml(convo.card) + '</div>'
           : '<div class="card"></div>') +
         corpo +
-        '<div class="rodape">gerado por feita de pontos · oito mentes de pontos</div>' +
+        (bibliografia.length
+          ? '<div class="refs"><h2>fontes consultadas nesta sessão</h2><ol>' +
+            bibliografia.map(f =>
+              '<li>' + escHtml(f.titulo) +
+              '<br><a href="' + escHtml(f.uri) + '">' + escHtml(f.uri) + '</a></li>'
+            ).join('') + '</ol></div>'
+          : '') +
+        '<div class="rodape">gerado por feita de pontos · dez mentes de pontos</div>' +
         '</body></html>';
     }
     function exportPDF(){
@@ -1238,6 +1313,7 @@
 
     /* contexto vivo da sessão: cartão do brief + fase atual */
     let fatosSessao = [];
+    let bibliografia = [];  /* {titulo, uri} — todas as fontes reais da sessão */
     function sessionContext(){
       let s = '';
       if (convo.card) s += 'BRIEF DA SESSÃO — ' + convo.card + '. ';
@@ -1312,6 +1388,7 @@
               .filter(Boolean).slice(0, 3);
             llmFontes.forEach(f => {
               if (fatosSessao.indexOf(f.titulo) === -1) fatosSessao.push(f.titulo);
+              if (!bibliografia.some(b => b.uri === f.uri)) bibliografia.push(f);
             });
           }
           if (!raw){
@@ -1353,7 +1430,9 @@
       }
     }
     function limpa(s){
-      return String(s).replace(/\*+/g, '').replace(/[#_`~]+/g, ' ')
+      return String(s)
+        .replace(/^\s*\[[^\]]{1,40}\]\s*/g, '')   /* etiqueta [nome] vazada */
+        .replace(/\*+/g, '').replace(/[#_`~]+/g, ' ')
         .replace(/\s{2,}/g, ' ').trim();
     }
     function outraMente(exceto){
@@ -1429,6 +1508,7 @@
       aText.innerHTML = '';
       retorno.classList.remove('on');
       setEstado('ouvindo…');
+      pensa(ARQ.nome, FASES);
       oracle.agitTarget = 0.55;
       qInput.value = '';
       qInput.style.height = 'auto';
@@ -1468,6 +1548,8 @@
         convo.history = s.historia;
         convo.card = s.card || null;
         convo.turns = s.turns || 0;
+        bibliografia = s.biblio || [];
+        fatosSessao = s.fatos || [];
         oracle.lastQ = s.brief || null;
         if (s.quem && ARCH[s.quem] && s.quem !== curKey){
           setArch(s.quem, false);
@@ -1506,6 +1588,7 @@
         oracle.until = performance.now() / 1000 + 1.3;
         askBar.classList.add('busy');
         setEstado(ARCH[ho.quem].nome + ' entra na conversa');
+        pensa(ARCH[ho.quem].nome, FASES);
         oracle.agitTarget = 0.5;
         (async () => { convo.ans = await callConvo(false); })();
       }
@@ -1542,6 +1625,7 @@
       nextChange = Infinity;
       setEstado(target.n);
 
+      paraPensa();
       acendeArea(humor);
       const rotulo = (echoLabel || ARQ.nome);
       if (lastTexto){
@@ -1813,6 +1897,7 @@
       aText.innerHTML = '';
       retorno.classList.remove('on');
       setEstado('sintetizando…');
+      pensa(ARQ.nome, ['relendo a sessão', 'nomeando territórios', 'sintetizando']);
       oracle.agitTarget = 0.6;
       convo.history.push({ role: 'user',
         content: '[pedido de síntese] Sintetize a sessão: territórios, tensão central e próximo passo.' });
@@ -1955,6 +2040,30 @@
     let gazeMode = 'center', gazeNext = 3, sacNext = 2;
 
 
+
+    /* painel de pensamento: nome da mente + fase + varredura */
+    const thinkEl = document.getElementById('thinking');
+    const tNameEl = document.getElementById('tName');
+    const tPhaseEl = document.getElementById('tPhase');
+    let thinking = false, thinkTimers = [];
+    const FASES = USE_GEMINI
+      ? ['lendo o brief', 'consultando fontes', 'cruzando referências', 'formulando']
+      : ['lendo o brief', 'cruzando referências', 'formulando'];
+    function pensa(nome, fases){
+      thinking = true;
+      tNameEl.textContent = nome;
+      tPhaseEl.textContent = (fases || FASES)[0];
+      thinkEl.classList.add('on');
+      thinkTimers.forEach(clearTimeout);
+      thinkTimers = (fases || FASES).map((f, i) =>
+        setTimeout(() => { if (thinking) tPhaseEl.textContent = f; }, i * 1900));
+    }
+    function paraPensa(){
+      thinking = false;
+      thinkEl.classList.remove('on');
+      thinkTimers.forEach(clearTimeout);
+      thinkTimers = [];
+    }
 
     /* atividade cerebral: região acesa conforme o humor da fala */
     const AREAS = {
@@ -2156,10 +2265,9 @@
       const heatDecay = Math.exp(-dt * 2.4);
       brainGlow += (brainGlowT - brainGlow) * (1 - Math.exp(-dt * 1.8));
       const ehCerebro = curKey === 'cerebro';
-      /* enquanto pensa, uma onda varre os hemisférios */
-      const pensando = ehCerebro && (oracle.state === 'convo' ||
-        oracle.state === 'deep' || agit > 0.2);
-      const ondaX = pensando ? (Math.sin(t * 1.6) * 0.5 + 0.5) * SW : -999;
+      /* enquanto pensa, uma onda de luz varre o rosto — em todas as mentes */
+      const pensando = thinking || oracle.state === 'convo' || oracle.state === 'deep';
+      const ondaX = pensando ? (Math.sin(t * 1.15) * 0.5 + 0.5) * SW : -999;
       const pulso = 0.72 + 0.28 * Math.sin(t * 2.4);
 
       /* metamorfose: pareamento ponto a ponto entre rostos */
@@ -2271,18 +2379,22 @@
         let alpha = sa + shimmer - (bl + agit * 0.7) * 0.5 * Math.min(1, p.wIr);
         alpha = Math.max(0.05, Math.min(1, alpha));
 
-        /* atividade cerebral: a região do humor acende e pulsa */
+        /* varredura do pensamento + região cerebral acesa */
         let bg = 0, bc = null;
-        if (ehCerebro && !inIntro && !DFrom){
-          if (brainArea && brainGlow > 0.02){
+        if (!inIntro && !DFrom){
+          if (ehCerebro && brainArea && brainGlow > 0.02){
             bg = Math.min(1, (p[brainArea.k] || 0) * brainGlow * pulso * 1.5);
             bc = brainArea.c;
           }
           if (pensando){
-            const d = Math.abs(p.hx - ondaX);
-            if (d < 70){
-              const w = (1 - d / 70) * 0.55;
-              if (w > bg){ bg = w; bc = [150, 200, 255]; }
+            const d = Math.abs((p.hx !== undefined ? p.hx : sx) - ondaX);
+            if (d < 90){
+              const w = (1 - d / 90) * 0.6;
+              if (w > bg){
+                bg = w;
+                bc = ehCerebro ? [150, 200, 255]
+                               : [ARQ.heatC[0], ARQ.heatC[1], ARQ.heatC[2]];
+              }
             }
           }
         }
