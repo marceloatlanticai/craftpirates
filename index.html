@@ -226,6 +226,7 @@
   /* pergunta */
   .ask{
     position:fixed;
+    align-items:flex-end;
     left:50%;
     bottom:clamp(22px, 5.5vh, 60px);
     transform:translateX(-50%);
@@ -240,7 +241,7 @@
     border-radius:16px;
     z-index:1;
   }
-  .ask input{
+  .ask textarea{
     flex:1;
     background:transparent;
     border:none;
@@ -249,18 +250,22 @@
     color:var(--ink);
     font-family:Didot, "Bodoni MT", "Playfair Display", Georgia, serif;
     font-style:italic;
-    font-size:clamp(15px, 2vw, 18px);
+    font-size:clamp(14px, 1.5vw, 17px);
+    line-height:1.5;
     text-align:center;
     padding:10px 4px;
+    resize:none;
+    min-height:44px;
+    max-height:150px;
+    overflow-y:auto;
     transition:border-color .4s ease, opacity .4s ease;
     caret-color:var(--ink);
   }
-  .ask input::placeholder{
-    color:rgba(143,138,125,.75);
-  }
-  .ask input:focus{
-    border-bottom-color:rgba(233,227,213,.8);
-  }
+  .ask textarea::placeholder{ color:rgba(143,138,125,.75); }
+  .ask textarea:focus{ border-bottom-color:rgba(233,227,213,.8); }
+  .ask textarea::-webkit-scrollbar{ width:4px; }
+  .ask textarea::-webkit-scrollbar-thumb{
+    background:rgba(143,138,125,.4); border-radius:2px; }
   .ask button{
     background:transparent;
     border:none;
@@ -334,9 +339,9 @@
 </div>
 
 <div class="ask" id="askBar">
-  <input id="qInput" type="text" maxlength="600"
-         placeholder="cole seu brief ou sua ideia bruta…"
-         autocomplete="off" spellcheck="false">
+  <textarea id="qInput" maxlength="4000" rows="3"
+         placeholder="cole seu brief ou sua ideia bruta… (enter envia · shift+enter quebra linha)"
+         autocomplete="off" spellcheck="false"></textarea>
   <button id="micBtn" type="button" style="display:none">falar</button>
   <button id="soundBtn" type="button">som off</button>
   <button id="voiceBtn" type="button">voz off</button>
@@ -450,6 +455,7 @@
       },
       vidente: {
         nome: 'a semióloga', g: 'f',
+        glifo: 'let', glifoFrac: 0.6, glifoSet: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ§¶∆Ω×÷',
         A: {eyeL:{x:189,y:351},eyeR:{x:367,y:351},browL:{x:186,y:318},browR:{x:370,y:318},mouthC:{x:280,y:525},mouthL:{x:235,y:523},mouthR:{x:325,y:523},cheekL:{x:165,y:455},cheekR:{x:395,y:455},faceC:{x:280,y:435}},
         eyeY: 351, mag: 0.12, sigma: 44, boost: 1.0, aw: 1.0,
         floor: 0.16, dotR: 0.95,
@@ -463,6 +469,7 @@
       },
       sabio: {
         nome: 'o estrategista', g: 'm',
+        glifo: 'num', glifoFrac: 0.55,
         A: {eyeL:{x:172,y:347},eyeR:{x:371,y:347},browL:{x:170,y:306},browR:{x:373,y:306},mouthC:{x:280,y:524},mouthL:{x:220,y:522},mouthR:{x:340,y:522},cheekL:{x:140,y:440},cheekR:{x:420,y:440},faceC:{x:280,y:430}},
         eyeY: 347, mag: 0.12, sigma: 44, boost: 1.0, aw: 1.15,
         floor: 0.3, dotR: 0.85,
@@ -476,6 +483,7 @@
       },
       heroina: {
         nome: 'a provocadora', g: 'f',
+        glifo: 'let', glifoFrac: 0.55,
         A: {eyeL:{x:181,y:360},eyeR:{x:371,y:360},browL:{x:178,y:329},browR:{x:374,y:329},mouthC:{x:280,y:558},mouthL:{x:224,y:556},mouthR:{x:336,y:556},cheekL:{x:160,y:480},cheekR:{x:400,y:480},faceC:{x:280,y:450}},
         eyeY: 360, mag: 0.1, sigma: 46, boost: 0.9, aw: 1.05,
         floor: 0.1, dotR: 1.0,
@@ -515,6 +523,7 @@
       },
       explorador: {
         nome: 'o explorador', g: 'm',
+        glifo: 'mix', glifoFrac: 0.5,
         A: {eyeL:{x:170,y:322},eyeR:{x:368,y:322},browL:{x:168,y:295},browR:{x:370,y:295},mouthC:{x:271,y:516},mouthL:{x:224,y:514},mouthR:{x:325,y:514},cheekL:{x:116,y:427},cheekR:{x:426,y:427},faceC:{x:271,y:420}},
         eyeY: 322, mag: 0.12, sigma: 44, boost: 1.0, aw: 1.0,
         floor: 0.26, dotR: 0.88,
@@ -528,6 +537,7 @@
       },
       comum: {
         nome: 'o cético', g: 'm',
+        glifo: 'num', glifoFrac: 0.5,
         A: {eyeL:{x:202,y:302},eyeR:{x:358,y:302},browL:{x:200,y:274},browR:{x:360,y:274},mouthC:{x:280,y:455},mouthL:{x:235,y:453},mouthR:{x:325,y:453},cheekL:{x:175,y:390},cheekR:{x:385,y:390},faceC:{x:280,y:380}},
         eyeY: 302, mag: 0.15, sigma: 42, boost: 1.1, aw: 1.0,
         floor: 0.34, dotR: 0.85,
@@ -555,6 +565,7 @@
       },
       cerebro: {
         nome: 'o cérebro', g: 'm',
+        glifo: 'mix', glifoFrac: 0.6,
         A: {eyeL:{x:200,y:300},eyeR:{x:360,y:300},browL:{x:200,y:240},browR:{x:360,y:240},mouthC:{x:280,y:600},mouthL:{x:250,y:598},mouthR:{x:310,y:598},cheekL:{x:150,y:430},cheekR:{x:410,y:430},faceC:{x:280,y:380}},
         eyeY: 300, mag: 0, sigma: 40, boost: 0, aw: 1.2,
         floor: 0.32, dotR: 0.85,
@@ -573,6 +584,7 @@
     let inkStr = 'rgb(233,227,213)';
     let iR = 233, iG = 227, iB = 213, hdR = 22, hdG = -31, hdB = -103;
     let curKey = 'maga';
+    let brainArea = null, brainGlow = 0, brainGlowT = 0;
     let morph = null;
     const MORPH_DUR = 2.2;
 
@@ -582,6 +594,7 @@
       hdR = ARQ.heatC[0] - iR; hdG = ARQ.heatC[1] - iG; hdB = ARQ.heatC[2] - iB;
       inkStr = 'rgb(' + iR + ',' + iG + ',' + iB + ')';
       document.getElementById('archInfo').textContent = ARQ.nome;
+      brainArea = null; brainGlowT = 0;
       if (!initial){
         /* metamorfose: os pontos viajam do rosto atual para o novo */
         morph = { from: curKey, start: performance.now() / 1000 };
@@ -598,6 +611,11 @@
     const TARGET = FACE_N + HALO_N;
     const GAMMA = 1.5;
 
+    const ALFA = {
+      num: '0123456789',
+      let: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+      mix: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    };
     /* amostra um rosto: mesma contagem de pontos em todos,
        para que a metamorfose pareie ponto a ponto */
     function buildFace(imgEl, cfg){
@@ -641,8 +659,21 @@
         }
         const wMoV = gauss(x, y, CA.mouthC.x, CA.mouthC.y, 46 * AW, 26 * AW);
         const lipLow = Math.max(0, Math.min(1, (y - CA.mouthC.y) / 16));
+        /* regiões cerebrais (só usadas pelo cérebro):
+           límbico central-baixo, pré-frontal esq/dir, posterior direito */
+        const rLimb = gauss(x, y, 280, 480, 95, 80);
+        const rPfL  = gauss(x, y, 195, 250, 90, 85);
+        const rPfR  = gauss(x, y, 365, 250, 90, 85);
+        const rPost = gauss(x, y, 380, 430, 105, 95);
+        /* glifos: só onde há luz (áreas claras têm espaço para a forma);
+           as sombras densas continuam sendo pontos */
+        let ch = null;
+        if (cfg.glifo && lum > 0.42 && Math.random() < (cfg.glifoFrac || 0.5)){
+          const alfabeto = cfg.glifoSet || ALFA[cfg.glifo] || ALFA.mix;
+          ch = alfabeto[(Math.random() * alfabeto.length) | 0];
+        }
         out.push({
-          x, y,
+          x, y, ch,
           r: (0.5 + lum * 0.8 + Math.random() * 0.28) * (1 - 0.28 * boost) * cfg.dotR,
           a: Math.min(1, 0.32 + lum * 0.62 + 0.18 * boost),
           ph1: Math.random() * Math.PI * 2,
@@ -673,7 +704,8 @@
           wMoUp:  wMoV * (1 - lipLow),
           wJaw: gauss(x, y, CA.mouthC.x, CA.mouthC.y + 70, 55 * AW, 42 * AW),
           wTurn: gauss(x, y, CA.faceC.x, CA.faceC.y, 88, 175),
-          wHead: gauss(x, y, CA.faceC.x, CA.faceC.y + 20, 215, 290)
+          wHead: gauss(x, y, CA.faceC.x, CA.faceC.y + 20, 215, 290),
+          rLimb, rPfL, rPfR, rPost, hx: x
         });
       }
       /* halo: gradiente de pontos para fora das bordas — a luz
@@ -907,7 +939,7 @@
       qInput.blur();
       (async () => {
         const raw = await llm(
-          'Extraia do texto um cartão de brief em JSON: {"marca":"","categoria":"","produto":"","publico":"","objetivo":"","tensao":"a tensão criativa central"}. Infira com bom senso o que faltar, marcando (inferido). Responda APENAS o JSON, sem markdown.',
+          'Leia o brief (pode ser longo) e destile o essencial num cartão em JSON: {"marca":"","categoria":"","produto":"","publico":"","objetivo":"","tensao":"a tensão criativa central"}. Infira com bom senso o que faltar, marcando (inferido). Responda APENAS o JSON, sem markdown.',
           [ { role: 'user', content: q } ], 0, true);
         try{
           const c = JSON.parse(raw.replace(/```json|```/g, '').trim());
@@ -1371,6 +1403,7 @@
       setEstado('ouvindo…');
       oracle.agitTarget = 0.55;
       qInput.value = '';
+      qInput.style.height = 'auto';
       qInput.blur();
       convo.ans = await callConvo(true);
     }
@@ -1481,6 +1514,7 @@
       nextChange = Infinity;
       setEstado(target.n);
 
+      acendeArea(humor);
       const rotulo = (echoLabel || ARQ.nome);
       if (lastTexto){
         prevQuem.textContent = lastQuem;
@@ -1554,15 +1588,23 @@
     function speak(text){
       if (!voiceOn || !('speechSynthesis' in window)) return 0;
       try{
+        /* a voz pula parênteses e colchetes: nomes, anos e fontes
+           ficam na tela, mas não são narrados */
+        const falavel = String(text)
+          .replace(/\[[^\]]*\]/g, ' ')
+          .replace(/\([^)]*\)/g, ' ')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
+        if (!falavel) return 0;
         speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
+        const u = new SpeechSynthesisUtterance(falavel);
         u.lang = 'pt-BR';
         if (ARQ.voice) u.voice = ARQ.voice;
         else if (ptVoice) u.voice = ptVoice;
         u.rate = ARQ.rate;
         u.pitch = ARQ.pitch;
         speechSynthesis.speak(u);
-        return text.split(' ').length * 0.34 + 0.6;
+        return falavel.split(' ').length * 0.34 + 0.6;
       }catch(e){ return 0; }
     }
     /* ------- o som do toque (Web Audio, generativo) ------- */
@@ -1575,6 +1617,16 @@
       master = actx.createGain();
       master.gain.value = 0.6;
       master.connect(actx.destination);
+      /* eco curto: dá espaço às notas */
+      const dly = actx.createDelay(1);
+      dly.delayTime.value = 0.32;
+      const fb = actx.createGain();
+      fb.gain.value = 0.28;
+      const wet = actx.createGain();
+      wet.gain.value = 0.3;
+      master.connect(dly);
+      dly.connect(fb); fb.connect(dly);
+      dly.connect(wet); wet.connect(actx.destination);
       /* sopro: ruído por filtro passa-banda, ganho segue o toque */
       const len = actx.sampleRate * 2;
       const buf = actx.createBuffer(1, len, actx.sampleRate);
@@ -1596,14 +1648,24 @@
     function note(freq, vel, pan){
       if (!actx) return;
       const t0 = actx.currentTime;
+      const S = SOM[curKey] || SOM._;
+      const dur = S.dur;
       const o = actx.createOscillator();
       o.type = ARQ.wave;
-      vel = vel * (ARQ.wave === 'sawtooth' ? 0.45 : 1);
+      vel = vel * (ARQ.wave === 'sawtooth' ? 0.45 : 1) * (S.vel || 1);
       o.frequency.value = freq * (1 + (Math.random() - 0.5) * 0.004);
+      if (S.vib){
+        const lfo = actx.createOscillator();
+        const lg = actx.createGain();
+        lfo.frequency.value = 5.2;
+        lg.gain.value = freq * 0.008;
+        lfo.connect(lg); lg.connect(o.frequency);
+        lfo.start(t0); lfo.stop(t0 + dur + 0.1);
+      }
       const g = actx.createGain();
       g.gain.setValueAtTime(0, t0);
-      g.gain.linearRampToValueAtTime(vel, t0 + 0.012);
-      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.1);
+      g.gain.linearRampToValueAtTime(vel, t0 + (S.atk || 0.012));
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
       o.connect(g);
       if (actx.createStereoPanner){
         const p = actx.createStereoPanner();
@@ -1613,8 +1675,35 @@
         g.connect(master);
       }
       o.start(t0);
-      o.stop(t0 + 1.2);
+      o.stop(t0 + dur + 0.1);
+      /* quinta ou terça ocasional: vira acorde */
+      if (S.chord && Math.random() < S.chord){
+        const o2 = actx.createOscillator();
+        o2.type = ARQ.wave;
+        o2.frequency.value = freq * (Math.random() < 0.5 ? 1.5 : 1.2599);
+        const g2 = actx.createGain();
+        g2.gain.setValueAtTime(0, t0);
+        g2.gain.linearRampToValueAtTime(vel * 0.45, t0 + 0.02);
+        g2.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 0.9);
+        o2.connect(g2); g2.connect(master);
+        o2.start(t0 + 0.015);
+        o2.stop(t0 + dur + 0.1);
+      }
     }
+    /* assinatura sonora de cada mente */
+    const SOM = {
+      _:          { dur: 1.1, atk: 0.012, chord: 0.15 },
+      maga:       { dur: 1.5, atk: 0.02,  chord: 0.35, vel: 1 },
+      vidente:    { dur: 1.2, atk: 0.01,  chord: 0.3 },
+      sabio:      { dur: 0.5, atk: 0.004, chord: 0,    vel: 0.9 },
+      heroina:    { dur: 0.35, atk: 0.003, chord: 0.1, vel: 1.1 },
+      amante:     { dur: 2.2, atk: 0.06,  chord: 0.45, vib: true, vel: 0.95 },
+      inocente:   { dur: 0.55, atk: 0.005, chord: 0.25 },
+      explorador: { dur: 1.3, atk: 0.02,  chord: 0.2 },
+      comum:      { dur: 0.9, atk: 0.01,  chord: 0.1, vel: 0.9 },
+      diretora:   { dur: 1.6, atk: 0.03,  chord: 0.5, vel: 0.95 },
+      cerebro:    { dur: 2.6, atk: 0.08,  chord: 0.6, vib: true, vel: 0.9 }
+    };
     const soundBtn = document.getElementById('soundBtn');
     soundBtn.addEventListener('click', () => {
       audioOn = !audioOn;
@@ -1671,7 +1760,11 @@
     }
     qBtn.addEventListener('click', ask);
     qInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter') ask();
+      if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); ask(); }
+    });
+    qInput.addEventListener('input', () => {
+      qInput.style.height = 'auto';
+      qInput.style.height = Math.min(150, qInput.scrollHeight) + 'px';
     });
 
     /* ------- modo profundo: ela interpreta o hexagrama para o dilema ------- */
@@ -1834,6 +1927,20 @@
     let gazeMode = 'center', gazeNext = 3, sacNext = 2;
 
 
+
+    /* atividade cerebral: região acesa conforme o humor da fala */
+    const AREAS = {
+      gentil:     { k: 'rLimb', c: [255, 150, 120] },   /* límbico — emoção */
+      provocador: { k: 'rPfR',  c: [255, 90, 90] },     /* pré-frontal dir — conflito */
+      sereno:     { k: 'rPfL',  c: [110, 180, 255] },   /* pré-frontal esq — análise */
+      enigma:     { k: 'rPost', c: [185, 130, 255] }    /* posterior dir — insight */
+    };
+    function acendeArea(humor){
+      if (curKey !== 'cerebro') { brainArea = null; return; }
+      brainArea = AREAS[humor] || AREAS.sereno;
+      brainGlowT = 1;
+      setTimeout(() => { brainGlowT = 0; }, 9000);
+    }
 
     /* som do toque: intensidade suavizada e controle das notas */
     let touchS = 0, lastNoteT = 0, pmx = -1, pmy = -1;
@@ -2019,6 +2126,13 @@
 
       let frameTouch = 0;
       const heatDecay = Math.exp(-dt * 2.4);
+      brainGlow += (brainGlowT - brainGlow) * (1 - Math.exp(-dt * 1.8));
+      const ehCerebro = curKey === 'cerebro';
+      /* enquanto pensa, uma onda varre os hemisférios */
+      const pensando = ehCerebro && (oracle.state === 'convo' ||
+        oracle.state === 'deep' || agit > 0.2);
+      const ondaX = pensando ? (Math.sin(t * 1.6) * 0.5 + 0.5) * SW : -999;
+      const pulso = 0.72 + 0.28 * Math.sin(t * 2.4);
 
       /* metamorfose: pareamento ponto a ponto entre rostos */
       const DTo = FACES[curKey].dots;
@@ -2129,8 +2243,54 @@
         let alpha = sa + shimmer - (bl + agit * 0.7) * 0.5 * Math.min(1, p.wIr);
         alpha = Math.max(0.05, Math.min(1, alpha));
 
+        /* atividade cerebral: a região do humor acende e pulsa */
+        let bg = 0, bc = null;
+        if (ehCerebro && !inIntro && !DFrom){
+          if (brainArea && brainGlow > 0.02){
+            bg = Math.min(1, (p[brainArea.k] || 0) * brainGlow * pulso * 1.5);
+            bc = brainArea.c;
+          }
+          if (pensando){
+            const d = Math.abs(p.hx - ondaX);
+            if (d < 70){
+              const w = (1 - d / 70) * 0.55;
+              if (w > bg){ bg = w; bc = [150, 200, 255]; }
+            }
+          }
+        }
+        if (bg > 0.03 && bc){
+          ctx.globalAlpha = Math.max(0.05, Math.min(1, alpha + bg * 0.45));
+          ctx.fillStyle = 'rgb(' +
+            ((iR + (bc[0] - iR) * bg) | 0) + ',' +
+            ((iG + (bc[1] - iG) * bg) | 0) + ',' +
+            ((iB + (bc[2] - iB) * bg) | 0) + ')';
+          if (p.ch){
+            const fsb = Math.max(3.4, sr * scale * 3.1);
+            ctx.font = fsb.toFixed(1) + 'px "Helvetica Neue", Arial, sans-serif';
+            ctx.fillText(p.ch, px - fsb * 0.3, py + fsb * 0.34);
+          } else {
+            ctx.beginPath();
+            ctx.arc(px, py, sr * scale * 0.9 * (1 + bg * 0.4), 0, 6.2832);
+            ctx.fill();
+          }
+          ctx.fillStyle = inkStr;
+          continue;
+        }
+
         const h = p.heat;
-        if (h > 0.02){
+        if (p.ch && !inIntro && scatter < 0.02 && !DFrom){
+          /* três tamanhos, o maior nunca acima do maior ponto */
+          const fs = Math.max(3.4, sr * scale * 3.1);
+          ctx.font = fs.toFixed(1) + 'px "Helvetica Neue", Arial, sans-serif';
+          ctx.globalAlpha = Math.max(0.05, Math.min(1, alpha * 0.82 + h * 0.25));
+          if (h > 0.02){
+            ctx.fillStyle = 'rgb(' + ((iR + hdR * h) | 0) + ',' +
+                                     ((iG + hdG * h) | 0) + ',' +
+                                     ((iB + hdB * h) | 0) + ')';
+          }
+          ctx.fillText(p.ch, px - fs * 0.3, py + fs * 0.34);
+          if (h > 0.02) ctx.fillStyle = inkStr;
+        } else if (h > 0.02){
           /* brasa: marfim → dourado, esfriando de volta */
           ctx.fillStyle = 'rgb(' + ((iR + hdR * h) | 0) + ',' +
                                    ((iG + hdG * h) | 0) + ',' +
