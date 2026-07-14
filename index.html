@@ -1034,7 +1034,7 @@
       'O que você sente quando diz isso em voz alta?',
       'Se um amigo te dissesse isso, o que você responderia a ele?'
     ];
-    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo brasileiro. Falas do elenco vêm marcadas com [nome]; [direção da sessão] são instruções do palco; sem marca é a pessoa. IDIOMA: português do Brasil (você, a gente); jamais português europeu. ESTRUTURA OBRIGATÓRIA DO SEU TURNO, nesta ordem: (1) UMA frase reagindo à fala anterior do elenco — concorde, construa ou divirja, citando o nome de quem falou; se você é o primeiro a falar, responda diretamente à pergunta do criativo com posição clara (sim, não ou depende) e o porquê; (2) UMA a DUAS frases com a sua contribuição, em linguagem literal e direta — diga o que fazer e por que funciona, como se explicasse a um colega; (3) UMA referência real e nomeada, no máximo — campanha, marca, caso, autor ou dado — mostrando em uma frase o que ela ensina para ESTE caso; (4) UMA pergunta final curta, concreta e respondível (que peça uma escolha, um exemplo ou uma decisão — jamais uma charada). CLAREZA ACIMA DE TUDO: se uma frase sua puder ser lida de dois jeitos, reescreva. Metáfora só depois do argumento, nunca no lugar dele. Sem aforismos herméticos. Máximo de 85 palavras. PROIBIDO: asteriscos, markdown, listas, emojis, mais de uma referência por turno, conselho que serviria para qualquer marca. HONESTIDADE FACTUAL: a marca ou produto do brief pode ser fictício ou novo — nunca invente notícias, lançamentos, campanhas ou datas sobre ele; fale de fatos apenas quando forem de marcas e casos que você tem certeza que existem, ou que apareçam nas fontes desta sessão. Se não tiver fato seguro, argumente sem fato e diga que falta dado. REGRA DURA DE CITAÇÃO: você só pode citar um estudo, relatório ou pesquisa com nome de instituição e ano se ele constar das FONTES JÁ CONSULTADAS desta sessão. Fora isso, cite apenas: (a) obras e autores clássicos que você tem certeza absoluta que existem, sem inventar ano; ou (b) campanhas publicitárias amplamente conhecidas. Se precisar de um dado que você não tem, escreva o princípio e diga que o número precisa ser verificado. Inventar uma fonte é o pior erro possível nesta sala. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"...","proximo":"maga|vidente|sabio|heroina|amante|inocente|explorador|comum|diretora|cerebro — outra mente, diferente de quem respondeu, que teria algo a acrescentar ou contestar agora","gancho":"em até 12 palavras, o que essa mente quer dizer"}' +
+    const CONVO_BASE = 'Você está numa sessão de criação com um profissional criativo brasileiro. Falas do elenco vêm marcadas com [nome]; [direção da sessão] são instruções do palco; sem marca é a pessoa. IDIOMA: português do Brasil (você, a gente); jamais português europeu. ESTRUTURA OBRIGATÓRIA DO SEU TURNO, nesta ordem: (1) UMA frase reagindo à fala anterior do elenco, citando o nome de quem falou — VARIE a forma: às vezes discorde, às vezes corrija um detalhe, às vezes avance a ideia dela, às vezes aponte o que ela ignorou; jamais comece duas falas seguidas com a mesma palavra e evite abrir com a palavra Concordo; se você é o primeiro a falar, responda diretamente à pergunta do criativo com posição clara (sim, não ou depende) e o porquê; (2) UMA a DUAS frases com a sua contribuição, em linguagem literal e direta — diga o que fazer e por que funciona, como se explicasse a um colega; (3) UMA referência real e nomeada, no máximo — campanha, marca, caso, autor ou dado — mostrando em uma frase o que ela ensina para ESTE caso; (4) UMA pergunta final curta, concreta e respondível (que peça uma escolha, um exemplo ou uma decisão — jamais uma charada). CLAREZA ACIMA DE TUDO: se uma frase sua puder ser lida de dois jeitos, reescreva. Metáfora só depois do argumento, nunca no lugar dele. Sem aforismos herméticos. Máximo de 85 palavras. PROIBIDO: asteriscos, markdown, listas, emojis, mais de uma referência por turno, conselho que serviria para qualquer marca. HONESTIDADE FACTUAL: a marca ou produto do brief pode ser fictício ou novo — nunca invente notícias, lançamentos, campanhas ou datas sobre ele; fale de fatos apenas quando forem de marcas e casos que você tem certeza que existem, ou que apareçam nas fontes desta sessão. Se não tiver fato seguro, argumente sem fato e diga que falta dado. REGRA DURA DE CITAÇÃO: você só pode citar um estudo, relatório ou pesquisa com nome de instituição e ano se ele constar das FONTES JÁ CONSULTADAS desta sessão. Fora isso, cite apenas: (a) obras e autores clássicos que você tem certeza absoluta que existem, sem inventar ano; ou (b) campanhas publicitárias amplamente conhecidas. Se precisar de um dado que você não tem, escreva o princípio e diga que o número precisa ser verificado. Inventar uma fonte é o pior erro possível nesta sala. Responda APENAS com JSON válido, sem markdown: {"humor":"sereno|provocador|gentil|enigma","resposta":"...","proximo":"maga|vidente|sabio|heroina|amante|inocente|explorador|comum|diretora|cerebro — outra mente, diferente de quem respondeu, que teria algo a acrescentar ou contestar agora","gancho":"em até 12 palavras, o que essa mente quer dizer"}' +
       (USE_GEMINI ? ' USO DA BUSCA: pesquise antes de responder — monte a consulta com a CATEGORIA e o problema do brief mais o ano atual (nunca pesquise a marca do brief como se ela existisse); priorize casos e dados dos últimos 3 anos; só afirme fatos que aparecerem nas fontes retornadas, citando nome e ano. Se a busca nada trouxer, diga que está sem dados ao vivo neste turno e argumente sem fato.' : '');
 
     const PLACEHOLDER_ORACULO = 'cole seu brief ou sua ideia bruta…';
@@ -1268,15 +1268,19 @@
       pensa('o estrategista', ['relendo a sessão', 'nomeando territórios',
                               'organizando riscos', 'compilando o dossiê']);
       oracle.agitTarget = 0.6;
-      const raw = await llm(sessionContext() + DOSSIE_SYS, convo.history);
+      let raw = await llm(sessionContext() + DOSSIE_SYS, convo.history);
+      if (!raw || raw.length < 40){
+        await new Promise(r => setTimeout(r, 1200));
+        raw = await llm(sessionContext() + DOSSIE_SYS, convo.history);
+      }
       paraPensa();
       oracle.agitTarget = 0;
       oracle.state = 'revealing';
       askBar.classList.remove('busy');
       dossieBtn.classList.add('on');
-      let d = null;
-      try{ d = JSON.parse(String(raw).replace(/```json|```/g, '').trim()); }catch(e){}
+      let d = parseDossie(raw);
       if (!d || !d.titulo){
+        console.warn('[feita de pontos] dossiê falhou. bruto:', raw);
         setEstado('o dossiê falhou — tente de novo');
         return;
       }
@@ -1287,6 +1291,33 @@
     }
     dossieBtn.addEventListener('click', gerarDossie);
 
+    /* parser tolerante: resgata JSON truncado ou embrulhado em texto */
+    function parseDossie(raw){
+      if (!raw) return null;
+      let s = String(raw).replace(/```json|```/g, '').trim();
+      const i = s.indexOf('{');
+      if (i > 0) s = s.slice(i);
+      try{ return JSON.parse(s); }catch(e){}
+      /* varre acompanhando aspas e escapes; fecha o que ficou aberto */
+      const pilha = [];
+      let dentro = false, esc = false, ultimoSeguro = -1;
+      for (let k = 0; k < s.length; k++){
+        const c = s[k];
+        if (esc){ esc = false; continue; }
+        if (c === '\\'){ esc = true; continue; }
+        if (c === '"'){ dentro = !dentro; if (!dentro) ultimoSeguro = k; continue; }
+        if (dentro) continue;
+        if (c === '{' || c === '[') pilha.push(c === '{' ? '}' : ']');
+        else if (c === '}' || c === ']'){ pilha.pop(); ultimoSeguro = k; }
+        else if (c === ',' || c === ':') { /* segue */ }
+      }
+      if (ultimoSeguro < 0) return null;
+      let t = s.slice(0, ultimoSeguro + 1).replace(/,\s*$/, '');
+      /* fecha as aberturas pendentes na ordem inversa */
+      for (let k = pilha.length - 1; k >= 0; k--) t += pilha[k];
+      try{ return JSON.parse(t); }catch(e){}
+      return null;
+    }
     function li(arr){
       return (arr || []).map(x => '<li>' + escHtml(String(x)) + '</li>').join('');
     }
@@ -1500,7 +1531,7 @@
                   parts: [{ text: m.content }]
                 })),
                 tools: [{ google_search: {} }],
-                generationConfig: { temperature: 0.9 }
+                generationConfig: { temperature: 0.9, maxOutputTokens: 4096 }
               }) });
           status = r.status;
           const data = await r.json().catch(() => null);
@@ -1575,7 +1606,9 @@
     }
     function limpa(s){
       return String(s)
-        .replace(/^\s*\[[^\]]{1,40}\]\s*/g, '')   /* etiqueta [nome] vazada */
+        .replace(/\[\s*(a|o)\s+[^\]]{1,30}\]/gi, m =>
+          m.slice(1, -1).trim())                    /* [o estrategista] → o estrategista */
+        .replace(/^\s*\[[^\]]{1,40}\]\s*/g, '')   /* etiqueta no início */
         .replace(/\*+/g, '').replace(/[#_`~]+/g, ' ')
         .replace(/\s{2,}/g, ' ').trim();
     }
