@@ -202,7 +202,7 @@
   }
   #handoff{display:none;}
   #handoff.on{display:block;}
-  #deepBtn, #endBtn, #pdfBtn, .hobtn{
+  #deepBtn, #endBtn, #pdfBtn, #dossieBtn, .hobtn{
     display:none;
     margin-top:16px;
     background:transparent;
@@ -218,8 +218,9 @@
     transition:color .3s ease, border-color .3s ease, opacity .4s ease;
     font-family:inherit;
   }
-  #deepBtn:hover, #endBtn:hover, #pdfBtn:hover, .hobtn:hover{color:var(--ink); border-color:rgba(233,227,213,.7);}
-  #deepBtn.on, #endBtn.on, #pdfBtn.on{display:inline-block;}
+  #deepBtn:hover, #endBtn:hover, #pdfBtn:hover, #dossieBtn:hover, .hobtn:hover{color:var(--ink); border-color:rgba(233,227,213,.7);}
+  #deepBtn.on, #endBtn.on, #pdfBtn.on, #dossieBtn.on{display:inline-block;}
+  #dossieBtn{margin-left:10px; border-color:rgba(233,227,213,.55);}
   #pdfBtn{margin-left:10px;}
   .hobtn{display:inline-block; margin-left:6px; margin-right:6px;}
   #endBtn{margin-left:10px;}
@@ -389,7 +390,8 @@
     <button class="hobtn" id="hoNo" type="button">agora não</button>
   </div>
   <button id="deepBtn" type="button">✦ sintetizar sessão</button>
-  <button id="pdfBtn" type="button">salvar em pdf</button>
+  <button id="dossieBtn" type="button">✦ gerar dossiê</button>
+  <button id="pdfBtn" type="button">salvar transcrição</button>
   <button id="endBtn" type="button">encerrar conversa</button>
 </div>
 
@@ -961,6 +963,7 @@
       askBar.classList.add('busy');
       deepBtn.classList.remove('on');
       pdfBtn.classList.remove('on');
+      dossieBtn.classList.remove('on');
       qEcho.classList.remove('on');
       answerBox.classList.remove('on');
       aText.innerHTML = '';
@@ -1091,6 +1094,7 @@
       endBtn.classList.remove('on');
       deepBtn.classList.remove('on');
       pdfBtn.classList.remove('on');
+      dossieBtn.classList.remove('on');
       qEcho.classList.remove('on');
       answerBox.classList.remove('on');
       aText.innerHTML = '';
@@ -1204,6 +1208,23 @@
         '<div class="rodape">gerado por feita de pontos · dez mentes de pontos</div>' +
         '</body></html>';
     }
+    function imprime(html, nomeArquivo){
+      try{
+        const fr = document.createElement('iframe');
+        fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+        document.body.appendChild(fr);
+        fr.contentDocument.open();
+        fr.contentDocument.write(html);
+        fr.contentDocument.close();
+        setTimeout(() => {
+          try{
+            fr.contentWindow.focus();
+            fr.contentWindow.print();
+          }catch(e){ baixaHtml(html, nomeArquivo); }
+          setTimeout(() => fr.remove(), 4000);
+        }, 400);
+      }catch(e){ baixaHtml(html, nomeArquivo); }
+    }
     function exportPDF(){
       if (!convo.history.length) return;
       const html = buildSessionDoc();
@@ -1223,13 +1244,127 @@
         }, 350);
       }catch(e){ baixaHtml(html); }
     }
-    function baixaHtml(html){
+    function baixaHtml(html, nome){
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-      a.download = 'sessao-feita-de-pontos.html';
+      a.download = nome || 'sessao-feita-de-pontos.html';
       a.click();
     }
     pdfBtn.addEventListener('click', exportPDF);
+
+    /* ------- o dossiê: a sessão estruturada como documento ------- */
+    const dossieBtn = document.getElementById('dossieBtn');
+    const DOSSIE_SYS = 'Você é o estrategista-chefe de uma sala de criação. Releia a sessão inteira e produza o DOSSIÊ do projeto: um documento que o criativo levaria para uma reunião. Use apenas o que foi realmente discutido na sessão e o brief; não invente fatos, dados ou fontes. Português do Brasil, linguagem literal, frases curtas, sem asteriscos, sem markdown, sem emojis. Responda APENAS com JSON válido, exatamente neste formato: {"titulo":"um título curto e memorável para o projeto","sumario":"3 a 4 frases resumindo o que a sessão concluiu, respondendo diretamente o que o criativo pediu","proposicao":"a proposição única, em uma frase de no máximo 15 palavras","tensao":"a tensão central do projeto, em uma frase","territorios":[{"nome":"nome curto e memorável do território","ideia":"o que é, em uma frase","execucao":"como isso vira coisa concreta, em uma ou duas frases"}],"riscos":["o risco real 1, em uma frase","risco 2"],"referencias_visuais":["referência de arte, craft ou campanha citada na sessão, com o que ela ensina — só as que apareceram de verdade"],"proximos_passos":["passo concreto 1","passo 2","passo 3"]}. Traga de 2 a 3 territórios, 2 a 3 riscos e 3 próximos passos.';
+
+    async function gerarDossie(){
+      if (!convo.on || oracle.state === 'deep' || oracle.state === 'convo') return;
+      hideHandoff();
+      const antes = curKey;
+      if (curKey !== 'sabio'){ setArch('sabio', false); syncPills(); }
+      oracle.state = 'deep';
+      askBar.classList.add('busy');
+      dossieBtn.classList.remove('on');
+      setEstado('compilando o dossiê…');
+      pensa('o estrategista', ['relendo a sessão', 'nomeando territórios',
+                              'organizando riscos', 'compilando o dossiê']);
+      oracle.agitTarget = 0.6;
+      const raw = await llm(sessionContext() + DOSSIE_SYS, convo.history);
+      paraPensa();
+      oracle.agitTarget = 0;
+      oracle.state = 'revealing';
+      askBar.classList.remove('busy');
+      dossieBtn.classList.add('on');
+      let d = null;
+      try{ d = JSON.parse(String(raw).replace(/```json|```/g, '').trim()); }catch(e){}
+      if (!d || !d.titulo){
+        setEstado('o dossiê falhou — tente de novo');
+        return;
+      }
+      convo.dossie = d;
+      setEstado('dossiê pronto');
+      const html = buildDossieDoc(d);
+      imprime(html, 'dossie-feita-de-pontos.html');
+    }
+    dossieBtn.addEventListener('click', gerarDossie);
+
+    function li(arr){
+      return (arr || []).map(x => '<li>' + escHtml(String(x)) + '</li>').join('');
+    }
+    function buildDossieDoc(d){
+      const quando = new Date().toLocaleString('pt-BR',
+        { dateStyle: 'long', timeStyle: 'short' });
+      const terr = (d.territorios || []).map((t, i) =>
+        '<div class="terr"><div class="tnum">território ' + (i + 1) + '</div>' +
+        '<h3>' + escHtml(t.nome || '') + '</h3>' +
+        '<p class="tideia">' + escHtml(t.ideia || '') + '</p>' +
+        '<p class="texec"><span>execução</span> ' + escHtml(t.execucao || '') + '</p></div>').join('');
+      /* a transcrição vira anexo */
+      const transcricao = buildSessionDoc()
+        .replace(/^[\s\S]*<body>/, '').replace(/<\/body>[\s\S]*$/, '')
+        .replace(/<h1>[\s\S]*?<\/div>/, '');
+      return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+        '<title>' + escHtml(d.titulo) + ' — dossiê</title><style>' +
+        'body{font-family:Georgia,serif;color:#1a1a1a;max-width:660px;margin:0 auto;' +
+        'padding:56px 24px;line-height:1.6;}' +
+        '.capa{min-height:78vh;display:flex;flex-direction:column;justify-content:center;' +
+        'page-break-after:always;}' +
+        '.eyebrow{font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:.3em;' +
+        'text-transform:uppercase;color:#999;margin-bottom:18px;}' +
+        'h1{font-size:38px;font-weight:400;font-style:italic;line-height:1.15;margin:0 0 20px;}' +
+        '.prop{font-size:17px;font-style:italic;color:#444;border-left:2px solid #ddd;' +
+        'padding-left:16px;margin:24px 0;}' +
+        '.data{font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:.2em;' +
+        'text-transform:uppercase;color:#aaa;margin-top:auto;}' +
+        'h2{font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:.24em;' +
+        'text-transform:uppercase;color:#999;font-weight:400;margin:40px 0 14px;' +
+        'padding-bottom:8px;border-bottom:1px solid #e8e4dc;}' +
+        'p{font-size:14.5px;}' +
+        '.terr{margin-bottom:26px;page-break-inside:avoid;}' +
+        '.tnum{font-family:Helvetica,Arial,sans-serif;font-size:9px;letter-spacing:.24em;' +
+        'text-transform:uppercase;color:#bbb;}' +
+        '.terr h3{font-size:19px;font-weight:400;font-style:italic;margin:2px 0 6px;}' +
+        '.tideia{margin:0 0 6px;}' +
+        '.texec{margin:0;font-size:13px;color:#555;background:#f6f4f0;padding:10px 14px;' +
+        'border-radius:6px;}' +
+        '.texec span{font-family:Helvetica,Arial,sans-serif;font-size:9px;letter-spacing:.2em;' +
+        'text-transform:uppercase;color:#999;display:block;margin-bottom:3px;}' +
+        'ul{padding-left:18px;margin:0;} li{font-size:14px;margin-bottom:8px;}' +
+        '.tensao{background:#f6f4f0;padding:16px 20px;border-radius:8px;font-style:italic;' +
+        'font-size:15px;}' +
+        '.anexo{page-break-before:always;padding-top:20px;}' +
+        '.fala{margin-bottom:20px;page-break-inside:avoid;}' +
+        '.quem{font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:.22em;' +
+        'text-transform:uppercase;color:#999;margin-bottom:4px;}' +
+        '.fala p{margin:0;font-size:13px;}' +
+        '.voce p{color:#333;font-style:italic;}' +
+        '.sintese{background:#f6f4f0;padding:14px 18px;border-radius:8px;}' +
+        '.brief{background:#f6f4f0;padding:14px 18px;border-radius:8px;font-size:13px;}' +
+        '.card{font-family:Helvetica,Arial,sans-serif;font-size:10px;color:#888;}' +
+        '.refs{margin-top:30px;padding-top:16px;border-top:1px solid #e2ded6;}' +
+        '.refs h2{border:0;padding:0;margin:0 0 10px;}' +
+        '.refs li{font-size:12px;} .refs a{color:#666;font-size:10px;word-break:break-all;}' +
+        '.rodape{margin-top:36px;font-family:Helvetica,Arial,sans-serif;font-size:10px;' +
+        'letter-spacing:.18em;text-transform:uppercase;color:#aaa;}' +
+        '</style></head><body>' +
+        '<div class="capa">' +
+        '<div class="eyebrow">dossiê de criação</div>' +
+        '<h1>' + escHtml(d.titulo) + '</h1>' +
+        '<div class="prop">' + escHtml(d.proposicao || '') + '</div>' +
+        '<div class="data">feita de pontos · ' + escHtml(quando) + '</div>' +
+        '</div>' +
+        '<h2>sumário</h2><p>' + escHtml(d.sumario || '') + '</p>' +
+        '<h2>tensão central</h2><div class="tensao">' + escHtml(d.tensao || '') + '</div>' +
+        '<h2>territórios criativos</h2>' + terr +
+        (d.riscos && d.riscos.length
+          ? '<h2>riscos</h2><ul>' + li(d.riscos) + '</ul>' : '') +
+        (d.referencias_visuais && d.referencias_visuais.length
+          ? '<h2>referências</h2><ul>' + li(d.referencias_visuais) + '</ul>' : '') +
+        (d.proximos_passos && d.proximos_passos.length
+          ? '<h2>próximos passos</h2><ul>' + li(d.proximos_passos) + '</ul>' : '') +
+        '<div class="anexo"><h2>anexo — o debate</h2>' + transcricao + '</div>' +
+        '<div class="rodape">feita de pontos · dez mentes de pontos</div>' +
+        '</body></html>';
+    }
 
     /* seletor de arquétipos */
     document.getElementById('arcs').addEventListener('click', e => {
@@ -1667,6 +1802,7 @@
       if (convo.on && convo.history.length >= 2){
         deepBtn.classList.add('on');
         pdfBtn.classList.add('on');
+        dossieBtn.classList.add('on');
       }
       salvaSessao();
       askBar.classList.remove('busy');
