@@ -1254,7 +1254,7 @@
 
     /* ------- o dossiê: a sessão estruturada como documento ------- */
     const dossieBtn = document.getElementById('dossieBtn');
-    const DOSSIE_SYS = 'Você é o estrategista-chefe de uma sala de criação. Releia a sessão inteira e produza o DOSSIÊ do projeto: um documento que o criativo levaria para uma reunião. Use apenas o que foi realmente discutido na sessão e o brief; não invente fatos, dados ou fontes. Português do Brasil, linguagem literal, frases curtas, sem asteriscos, sem markdown, sem emojis. Responda APENAS com JSON válido, exatamente neste formato: {"titulo":"um título curto e memorável para o projeto","sumario":"3 a 4 frases resumindo o que a sessão concluiu, respondendo diretamente o que o criativo pediu","proposicao":"a proposição única, em uma frase de no máximo 15 palavras","tensao":"a tensão central do projeto, em uma frase","territorios":[{"nome":"nome curto e memorável do território","ideia":"o que é, em uma frase","execucao":"como isso vira coisa concreta, em uma ou duas frases"}],"riscos":["o risco real 1, em uma frase","risco 2"],"referencias_visuais":["referência de arte, craft ou campanha citada na sessão, com o que ela ensina — só as que apareceram de verdade"],"proximos_passos":["passo concreto 1","passo 2","passo 3"]}. Traga de 2 a 3 territórios, 2 a 3 riscos e 3 próximos passos.';
+    const DOSSIE_SYS = 'Você é o estrategista-chefe de uma sala de criação. Releia a sessão inteira e produza o DOSSIÊ do projeto: um documento que o criativo levaria para uma reunião. Use apenas o que foi realmente discutido na sessão e o brief; não invente fatos, dados ou fontes. Português do Brasil CORRETO E ACENTUADO: use todos os acentos e cedilhas normalmente (criação, técnica, decisão, método, solidão) — jamais escreva sem acentos. Capitalize as frases normalmente, começando com maiúscula. Linguagem literal, frases curtas, sem asteriscos, sem markdown, sem emojis. Responda APENAS com JSON válido, exatamente neste formato: {"titulo":"o nome do território-conceito do projeto, curto e memorável: de 2 a 5 palavras, como um título de campanha — jamais uma frase inteira","sumario":"3 a 4 frases resumindo o que a sessão concluiu, respondendo diretamente o que o criativo pediu","proposicao":"a proposição única do projeto, em uma frase afirmativa de no máximo 15 palavras","tensao":"a tensão central do projeto, em uma frase","territorios":[{"nome":"nome curto e memorável do território","ideia":"o que é, em uma frase","execucao":"como isso vira coisa concreta, em uma ou duas frases"}],"riscos":["o risco real 1, em uma frase","risco 2"],"referencias_visuais":["referência de arte, craft ou campanha citada na sessão, com o que ela ensina — só as que apareceram de verdade"],"proximos_passos":["passo concreto 1","passo 2","passo 3"]}. Traga de 2 a 3 territórios, 2 a 3 riscos e 3 próximos passos.';
 
     async function gerarDossie(){
       if (!convo.on || oracle.state === 'deep' || oracle.state === 'convo') return;
@@ -1279,6 +1279,7 @@
       askBar.classList.remove('busy');
       dossieBtn.classList.add('on');
       let d = parseDossie(raw);
+      if (d) d = acentuaD(d);
       if (!d || !d.titulo){
         console.warn('[feita de pontos] dossiê falhou. bruto:', raw);
         setEstado('o dossiê falhou — tente de novo');
@@ -1290,6 +1291,51 @@
       imprime(html, 'dossie-feita-de-pontos.html');
     }
     dossieBtn.addEventListener('click', gerarDossie);
+
+    /* rede de segurança: devolve acentos que o modelo tenha comido */
+    const ACENTOS = [
+      ['criacao','criação'],['decisao','decisão'],['solidao','solidão'],['sintese','síntese'],
+      ['tecnic','técnic'],['metodo','método'],['metodolog','metodológ'],['estetic','estétic'],
+      ['pratic','prátic'],['negocio','negócio'],['habito','hábito'],['generic','genéric'],
+      ['esforco','esforço'],['seguranca','segurança'],['conviccao','convicção'],
+      ['fragil','frágil'],['defensavel','defensável'],['tensao','tensão'],['visao','visão'],
+      ['hierarquia','hierarquia'],['cacofonia','cacofonia'],['paralisia','paralisia'],
+      ['evidencia','evidência'],['cientific','científic'],['experiencia','experiência'],
+      ['referencia','referência'],['proposicao','proposição'],['execucao','execução'],
+      ['territorio','território'],['proximo','próximo'],['analise','análise'],
+      ['estrategia','estratégia'],['publico','público'],['usuario','usuário'],
+      ['relatorio','relatório'],['possivel','possível'],['dificil','difícil'],
+      ['obvio','óbvio'],['unic','únic'],['logic','lógic'],['critic','crític'],
+      ['sera','será'],['nao ','não '],['e o ','é o '],['ja ','já ']
+    ];
+    function acentua(s){
+      if (!s) return s;
+      let t = String(s);
+      /* só age se o texto parecer desacentuado */
+      const temAcento = /[áàâãéêíóôõúçÁÉÍÓÚÇ]/.test(t);
+      if (temAcento) return t;
+      for (const [a, b] of ACENTOS){
+        t = t.replace(new RegExp(a, 'g'), b);
+      }
+      /* primeira letra maiúscula */
+      return t.charAt(0).toUpperCase() + t.slice(1);
+    }
+    function acentuaD(d){
+      const f = x => Array.isArray(x) ? x.map(acentua) : acentua(x);
+      d.titulo = acentua(d.titulo);
+      d.sumario = f(d.sumario);
+      d.proposicao = f(d.proposicao);
+      d.tensao = f(d.tensao);
+      d.riscos = f(d.riscos || []);
+      d.referencias_visuais = f(d.referencias_visuais || []);
+      d.proximos_passos = f(d.proximos_passos || []);
+      (d.territorios || []).forEach(t => {
+        t.nome = acentua(t.nome);
+        t.ideia = acentua(t.ideia);
+        t.execucao = acentua(t.execucao);
+      });
+      return d;
+    }
 
     /* parser tolerante: resgata JSON truncado ou embrulhado em texto */
     function parseDossie(raw){
@@ -1332,7 +1378,9 @@
       /* a transcrição vira anexo */
       const transcricao = buildSessionDoc()
         .replace(/^[\s\S]*<body>/, '').replace(/<\/body>[\s\S]*$/, '')
-        .replace(/<h1>[\s\S]*?<\/div>/, '');
+        .replace(/<h1>[\s\S]*?<\/div>/, '')
+        .replace(/<div class="rodape">[\s\S]*?<\/div>/, '')
+        + '<div class="rodape">feita de pontos · dez mentes de pontos</div>';
       return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
         '<title>' + escHtml(d.titulo) + ' — dossiê</title><style>' +
         'body{font-family:Georgia,serif;color:#1a1a1a;max-width:660px;margin:0 auto;' +
@@ -1342,8 +1390,10 @@
         '.eyebrow{font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:.3em;' +
         'text-transform:uppercase;color:#999;margin-bottom:18px;}' +
         'h1{font-size:38px;font-weight:400;font-style:italic;line-height:1.15;margin:0 0 20px;}' +
+        '.propLabel{font-family:Helvetica,Arial,sans-serif;font-size:9px;letter-spacing:.24em;' +
+        'text-transform:uppercase;color:#bbb;margin-top:26px;margin-bottom:6px;}' +
         '.prop{font-size:17px;font-style:italic;color:#444;border-left:2px solid #ddd;' +
-        'padding-left:16px;margin:24px 0;}' +
+        'padding-left:16px;margin:0 0 24px;}' +
         '.data{font-family:Helvetica,Arial,sans-serif;font-size:10px;letter-spacing:.2em;' +
         'text-transform:uppercase;color:#aaa;margin-top:auto;}' +
         'h2{font-family:Helvetica,Arial,sans-serif;font-size:11px;letter-spacing:.24em;' +
@@ -1380,6 +1430,7 @@
         '<div class="capa">' +
         '<div class="eyebrow">dossiê de criação</div>' +
         '<h1>' + escHtml(d.titulo) + '</h1>' +
+        '<div class="propLabel">proposição</div>' +
         '<div class="prop">' + escHtml(d.proposicao || '') + '</div>' +
         '<div class="data">feita de pontos · ' + escHtml(quando) + '</div>' +
         '</div>' +
@@ -1393,7 +1444,6 @@
         (d.proximos_passos && d.proximos_passos.length
           ? '<h2>próximos passos</h2><ul>' + li(d.proximos_passos) + '</ul>' : '') +
         '<div class="anexo"><h2>anexo — o debate</h2>' + transcricao + '</div>' +
-        '<div class="rodape">feita de pontos · dez mentes de pontos</div>' +
         '</body></html>';
     }
 
@@ -2020,33 +2070,62 @@
     const micBtn = document.getElementById('micBtn');
     if (SR){
       micBtn.style.display = '';
+      const rec = new SR();
+      rec.lang = 'pt-BR';
+      rec.continuous = true;        /* não para na primeira pausa */
+      rec.interimResults = true;    /* mostra o que entende em tempo real */
+      rec.maxAlternatives = 1;
       let listening = false;
+      let ditado = '';              /* trechos já confirmados */
+      let recTimeout = null;
+      const REC_MAX = 120000;       /* teto de 2 minutos por gravação */
+
+      function pararMic(){
+        listening = false;
+        clearTimeout(recTimeout);
+        try{ rec.stop(); }catch(e){}
+        micBtn.textContent = 'falar';
+        setEstado(qInput.value ? 'revise e envie quando quiser' : 'esperando');
+      }
       micBtn.addEventListener('click', () => {
-        if (listening) return;
+        if (listening){ pararMic(); return; }
+        /* o ditado soma ao que já estiver escrito */
+        ditado = qInput.value ? qInput.value.trim() + ' ' : '';
         try{
-          const rec = new SR();
-          rec.lang = 'pt-BR';
-          rec.interimResults = false;
-          rec.maxAlternatives = 1;
-          listening = true;
-          micBtn.textContent = 'ouvindo…';
-          setEstado('te escutando');
-          rec.onresult = e => {
-            const said = e.results[0][0].transcript;
-            qInput.value = said;
-            ask();
-          };
-          rec.onend = () => {
-            listening = false;
-            micBtn.textContent = 'falar';
-          };
-          rec.onerror = rec.onend;
           rec.start();
-        }catch(e){
-          listening = false;
+          listening = true;
+          micBtn.textContent = 'parar';
+          setEstado('te escutando — clique em parar quando terminar');
+          recTimeout = setTimeout(pararMic, REC_MAX);
+        }catch(e){}
+      });
+      rec.onresult = e => {
+        let parcial = '';
+        for (let i = e.resultIndex; i < e.results.length; i++){
+          const r = e.results[i];
+          if (r.isFinal) ditado += r[0].transcript.trim() + ' ';
+          else parcial += r[0].transcript;
+        }
+        qInput.value = (ditado + parcial).trim();
+        qInput.style.height = 'auto';
+        qInput.style.height = Math.min(150, qInput.scrollHeight) + 'px';
+      };
+      rec.onend = () => {
+        /* o motor do navegador para sozinho de tempos em tempos;
+           se ainda estamos gravando, retoma sem perder o texto */
+        if (listening){
+          try{ rec.start(); }catch(e){ pararMic(); }
+        } else {
           micBtn.textContent = 'falar';
         }
-      });
+      };
+      rec.onerror = ev => {
+        if (ev && (ev.error === 'not-allowed' || ev.error === 'service-not-allowed')){
+          setEstado('microfone bloqueado pelo navegador');
+          pararMic();
+        }
+        /* demais erros: o onend retoma sozinho */
+      };
     }
     qBtn.addEventListener('click', ask);
     qInput.addEventListener('keydown', e => {
